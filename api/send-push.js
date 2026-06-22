@@ -56,6 +56,7 @@ module.exports = async function handler(req, res) {
   });
 
   let sent = 0, failed = 0, expired = 0;
+  const errors = [];
   const expiredEndpoints = [];
 
   for (const row of subs) {
@@ -67,6 +68,7 @@ module.exports = async function handler(req, res) {
       sent++;
     } catch (err) {
       failed++;
+      errors.push({ status: err.statusCode, body: err.body, message: err.message });
       if (err.statusCode === 410 || err.statusCode === 404) {
         expired++;
         expiredEndpoints.push(row.subscription?.endpoint || '');
@@ -82,5 +84,5 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ ok: true, sent, failed, expired });
+  return res.status(200).json({ ok: true, sent, failed, expired, errors });
 };
