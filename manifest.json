@@ -1,0 +1,31 @@
+{
+  "name": "BET300 · Cajero",
+  "short_name": "BET300",
+  "description": "Cargas, retiros y soporte BET300",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#050510",
+  "theme_color": "#f5c542",
+  "lang": "es-AR",
+  "categories": ["finance","utilities"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Cargar saldo",
+      "short_name": "Carga",
+      "url": "/?source=pwa&flow=carga",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Solicitar retiro",
+      "short_name": "Retiro",
+      "url": "/?source=pwa&flow=retiro",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
