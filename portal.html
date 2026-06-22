@@ -102,6 +102,7 @@ const state={
   pendingTipo:localStorage.getItem("bet300_pending_tipo")||"",
   seenMsgIds:new Set(),
   portalThreadSeen:new Set(JSON.parse(localStorage.getItem("bet300_portal_thread_seen")||"[]")),
+  shownTexts:new Set(),
   solicitudStartedAt:Number(localStorage.getItem("bet300_solicitud_started_at")||0)
 };
 
@@ -133,7 +134,7 @@ async function pollOperatorMessages(){
     const isOp=emisor.includes("OPER")||emisor.includes("ADMIN")||emisor.includes("PANEL")||emisor.includes("SIST")||emisor.includes("BOT")||emisor.includes("AUTO");
     const texto=m.mensaje||m.texto||"";
     // Convertir \n a <br> para que los saltos de línea del panel se vean correctamente
-    if(isOp&&texto){addMsg(escMsg(texto),"bot");notificarLocal("BET300 · Operador",texto.substring(0,100),"/","bet300-op");}
+    if(isOp&&texto){const tk=texto.substring(0,200);if(state.shownTexts.has(tk))return;state.shownTexts.add(tk);addMsg(escMsg(texto),"bot");notificarLocal("BET300 · Operador",texto.substring(0,100),"/","bet300-op");}
   });
 }
 
@@ -170,6 +171,9 @@ async function pollPortalThread(){
     const texto=m.mensaje||"";
     // Mostramos en portal solo respuestas del panel/operador para evitar duplicar mensajes propios
     if(origen==="OPERADOR"&&texto){
+      const tk=texto.substring(0,200);
+      if(state.shownTexts.has(tk))return;
+      state.shownTexts.add(tk);
       addMsg(escMsg(texto),"bot");
     }
   });
@@ -263,7 +267,7 @@ function cambiarUsuario(){
 function _confirmarCambioUsuario(){
   stopChatPoll();stopEstadoPoll();
   ["bet300_usuario","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen"].forEach(k=>localStorage.removeItem(k));
-  Object.assign(state,{usuario:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set()});
+  Object.assign(state,{usuario:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set()});
   $("messages").innerHTML="";
   renderUserGate();
 }
@@ -352,18 +356,19 @@ function startEstadoPoll(){
   estadoPollTimer=setInterval(()=>consultarEstadoSolicitud(false),2500);
   setTimeout(()=>consultarEstadoSolicitud(false),800);
 }
-function limpiarPendienteAprobado(mensaje){
+function limpiarPendienteAprobado(obs){
   if(estadoFinalNotificado)return;
   estadoFinalNotificado=true;
   stopEstadoPoll();stopChatPoll();
   const old=document.getElementById("pendingBox");if(old)old.remove();
-  state.pendingTipo="";state.solicitudId="";state.chatId="";state.chatToken="";state.seenMsgIds=new Set();
+  state.pendingTipo="";state.solicitudId="";state.chatId="";state.chatToken="";state.seenMsgIds=new Set();state.shownTexts=new Set();
   ["bet300_pending_tipo","bet300_solicitud_id","bet300_chat_id","bet300_chat_token","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
-  // Limpiar historial de conversación y mostrar confirmación limpia
   const msgs=$("messages");
   if(msgs)msgs.innerHTML="";
-  addMsg(mensaje||"✅ Tu solicitud fue aprobada. Ya podés revisar tus fichas/saldo.","bot");
-  notificarLocal("BET300 · ¡Carga acreditada!","¡Tus fichas ya están disponibles! Revisá tu cuenta.","/","bet300-acreditada");
+  const textoBase="✅ ¡Tu carga fue acreditada! Ya podés jugar.";
+  const textoObs=obs?`<br><span style="font-size:12px;opacity:.8">${escMsg(obs)}</span>`:"";
+  addMsg(textoBase+textoObs,"bot");
+  notificarLocal("BET300 · ¡Carga acreditada!",obs||"¡Tus fichas ya están disponibles! Revisá tu cuenta.","/","bet300-acreditada");
   renderUserGate();
   setComposeEnabled(false,"Elegí una opción para continuar.");
   const body=$("widgetBody");if(body)body.scrollTop=0;
@@ -386,9 +391,10 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
   const d=normalize(res.data)||res.data||{};
   if(d.ok===false){if(mostrarMensaje)addMsg("Estado actual: <b>En verificación</b>","bot");return "PENDIENTE";}
   const estado=estadoNormalizado(d.estado||d.status||d.estado_solicitud);
+  const obs=String(d.obs||d.observacion||d.motivo||d.razon||"").trim();
   if(esEstadoFinalAprobado(estado)){
     if(esConfirmacionDemasiadoTemprana()){if(mostrarMensaje)addMsg("Estado actual: <b>En verificación</b>","bot");return "PENDIENTE";}
-    limpiarPendienteAprobado("✅ ¡Tus fichas fueron acreditadas! Ya podés jugar.");
+    limpiarPendienteAprobado(obs);
     return estado;
   }
   if(esEstadoFinalRechazado(estado)){
@@ -403,7 +409,8 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
     const old=document.getElementById("pendingBox");if(old)old.remove();
     state.pendingTipo="";state.solicitudId="";
     ["bet300_pending_tipo","bet300_solicitud_id","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
-    addMsg("Tu solicitud fue rechazada o cancelada. Podés iniciar una nueva si corresponde.","bot");
+    const motivoRechazo=obs?`<br><span style="font-size:12px;opacity:.8">${escMsg(obs)}</span>`:"";
+    addMsg("Tu solicitud no pudo procesarse."+motivoRechazo+" Si tenés dudas, iniciá una consulta.","bot");
     renderUserGate();
     return estado;
   }
