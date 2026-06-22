@@ -660,7 +660,7 @@ async function sendFreeMessage(){
 }
 
 // ── Push PWA ──────────────────────────────────────────────────────────────
-const VAPID_PUB_KEY="BDoEjtGj3HtlGxnDXMbDgCQzbKj8_Yx9qyRfNDdfoxSQQOdmDKIAe0prTxn4E-QqyK_yqf0cECfUG0kfnWQ16XY";
+const VAPID_PUB_KEY="BAH2MtolgsjjO31mPNwMi0WIl-T4LEDocaGSc1F3RUE0F7ZOF-1eJ1gXSuisalnR6tu0ZYcISWtnRdH-S5MFYBw";
 function _vapidKey(b64){
   const pad="=".repeat((4-b64.length%4)%4);
   const raw=atob((b64+pad).replace(/-/g,"+").replace(/_/g,"/"));
