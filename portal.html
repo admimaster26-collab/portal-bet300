@@ -105,7 +105,7 @@ const state={
   solicitudStartedAt:Number(localStorage.getItem("bet300_solicitud_started_at")||0)
 };
 
-let chatPollTimer=null, estadoPollTimer=null, portalThreadTimer=null, estadoFinalNotificado=false;
+let chatPollTimer=null, estadoPollTimer=null, portalThreadTimer=null, estadoFinalNotificado=false, rechazadoStreak=0;
 
 function $(id){return document.getElementById(id)}
 function esc(t){return String(t??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
@@ -392,7 +392,14 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
     return estado;
   }
   if(esEstadoFinalRechazado(estado)){
+    rechazadoStreak++;
+    // Confirmar con 3 polls consecutivos antes de mostrar rechazo (evita falsos positivos de estados transitorios)
+    if(rechazadoStreak < 3){
+      if(mostrarMensaje)addMsg("Estado actual: <b>En verificación</b>","bot");
+      return "PENDIENTE";
+    }
     stopEstadoPoll();
+    rechazadoStreak=0;
     const old=document.getElementById("pendingBox");if(old)old.remove();
     state.pendingTipo="";state.solicitudId="";
     ["bet300_pending_tipo","bet300_solicitud_id","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
@@ -400,6 +407,7 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
     renderUserGate();
     return estado;
   }
+  rechazadoStreak=0; // resetear streak si el estado no es rechazo
   if(mostrarMensaje)addMsg("Estado actual: <b>En verificación</b>","bot");
   return estado||"PENDIENTE";
 }
