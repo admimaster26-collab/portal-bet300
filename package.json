@@ -1,0 +1,9 @@
+{
+  "name": "portal-bet300",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.105.4",
+    "web-push": "^3.6.7"
+  }
+}
