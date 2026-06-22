@@ -39,7 +39,32 @@ async function _handler(req, res) {
   const token = authHeader.replace(/^Bearer\s+/i, '') || bodySecret;
   if (PUSH_SEC && token !== PUSH_SEC) return res.status(401).json({ error: 'No autorizado' });
 
-  const { title, body, url, tag, usuario, usuarios, pc_codigo } = req.body || {};
+  let { title, body, url, tag, usuario, usuarios, pc_codigo } = req.body || {};
+
+  // ── Detectar formato Supabase Webhook ────────────────────
+  // Supabase envía: { type, table, record: {...}, old_record: {...} }
+  const sbRecord    = req.body?.record;
+  const sbOldRecord = req.body?.old_record;
+  if (sbRecord && sbRecord.usuario) {
+    const ESTADOS_APROBADOS = ['ACREDITADA','PAGADA','COMPLETADA'];
+    const estadoNuevo  = String(sbRecord.estado  || '').toUpperCase();
+    const estadoViejo  = String(sbOldRecord?.estado || '').toUpperCase();
+    // Solo disparar si el estado CAMBIÓ a aprobado (no si ya estaba aprobado)
+    if (!ESTADOS_APROBADOS.includes(estadoNuevo)) {
+      return res.status(200).json({ ok: true, skipped: true, reason: 'estado_no_aprobado', estado: estadoNuevo });
+    }
+    if (ESTADOS_APROBADOS.includes(estadoViejo)) {
+      return res.status(200).json({ ok: true, skipped: true, reason: 'ya_estaba_aprobado' });
+    }
+    // Construir el mensaje automático
+    const tipo = String(sbRecord.tipo || 'CARGA').toUpperCase();
+    usuario = String(sbRecord.usuario).trim().toLowerCase();
+    title   = title || (tipo === 'RETIRO' ? 'BET300 · ¡Retiro procesado!' : 'BET300 · ¡Carga acreditada!');
+    body    = body  || (tipo === 'RETIRO' ? 'Tu retiro fue procesado. Revisá tu cuenta.' : '¡Tus fichas ya están disponibles! Entrá a jugar.');
+    url     = url   || '/';
+    tag     = tag   || 'bet300-aprobado';
+  }
+
   if (!title) return res.status(400).json({ error: 'title requerido' });
 
   const sb = createClient(SB_URL, SB_KEY);
@@ -47,9 +72,9 @@ async function _handler(req, res) {
   // ── Buscar suscripciones ──────────────────────────────────
   let query = sb.from('push_subscriptions').select('usuario, subscription').eq('activa', true);
 
-  if (usuario)         query = query.eq('usuario', usuario);
+  if (usuario)               query = query.eq('usuario', usuario);
   else if (usuarios?.length) query = query.in('usuario', usuarios);
-  else if (pc_codigo)  query = query.eq('pc_codigo', pc_codigo);
+  else if (pc_codigo)        query = query.eq('pc_codigo', pc_codigo);
   // Si no hay filtro → envía a TODOS (campañas masivas)
 
   const { data: subs, error } = await query;
