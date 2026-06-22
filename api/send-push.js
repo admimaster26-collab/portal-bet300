@@ -14,6 +14,12 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' });
 
+  try { return await _handler(req, res); }
+  catch(e) { return res.status(500).json({ error: e.message, stack: e.stack?.split('\n')[0] }); }
+}
+
+async function _handler(req, res) {
+
   // ── VAPID (leído dentro del handler para asegurar que las env vars estén disponibles)
   const VAPID_PUB  = process.env.VAPID_PUBLIC_KEY;
   const VAPID_PRIV = process.env.VAPID_PRIVATE_KEY;
