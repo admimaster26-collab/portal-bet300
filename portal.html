@@ -44,6 +44,9 @@ input,textarea{width:100%;border:1px solid rgba(255,255,255,.12);background:#fff
 .widget-compose{border-top:1px solid var(--line);background:#111222;padding:11px;display:grid;grid-template-columns:1fr 44px;gap:8px;align-items:end;min-height:64px}
 #freeInput{min-height:42px;height:42px;max-height:86px;overflow:auto;margin:0;resize:none;border-radius:14px;font-size:14px}
 .send-btn{height:42px;min-width:44px;width:44px;padding:0;border:none;border-radius:14px;background:var(--blue);color:#fff;font-weight:950;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px}
+.clip-btn{height:42px;min-width:44px;width:44px;padding:0;border:none;border-radius:14px;background:rgba(255,255,255,.09);color:#c7cbd6;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+.clip-btn:hover{background:rgba(255,255,255,.16)}
+.bubble img.chat-img{max-width:100%;border-radius:10px;margin-top:6px;display:block;cursor:pointer;border:1px solid rgba(255,255,255,.1)}
 .toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);z-index:60;background:#111827;color:#fff;border:1px solid rgba(255,255,255,.12);box-shadow:var(--shadow);padding:12px 15px;border-radius:14px;font-weight:900;font-size:13px;display:none}.toast.show{display:block}
 @media(max-width:700px){.float-btn{right:14px;bottom:16px;padding:13px 15px}.widget{right:8px;left:8px;bottom:76px;width:auto;height:72vh;max-height:72vh;border-radius:22px}.quick-grid{grid-template-columns:1fr 1fr}.form-row{grid-template-columns:1fr}.widget-head{padding:14px}}
 @media(max-width:390px){.quick-grid{grid-template-columns:1fr}.widget{height:75vh;max-height:75vh}}
@@ -54,9 +57,14 @@ input,textarea{width:100%;border:1px solid rgba(255,255,255,.12);background:#fff
 .link-btn{border:none;background:transparent;color:#ffe188;font-size:12px;font-weight:900;cursor:pointer;text-decoration:underline;padding:0;margin-top:6px}
 .widget-compose.locked{display:flex!important;align-items:center;justify-content:center;color:#a7adbd;font-size:13px;font-weight:900;min-height:64px;text-align:center;padding:12px 14px}
 .widget-compose.locked #composeLockText{width:100%;line-height:1.35}
-.widget-compose:not(.locked){display:grid!important;grid-template-columns:1fr 44px;gap:8px;align-items:end}
+.widget-compose:not(.locked){display:grid!important;grid-template-columns:44px 1fr 44px;gap:8px;align-items:end}
 .widget-compose:not(.locked) #composeLockText{display:none}
-.widget-compose.locked textarea,.widget-compose.locked button{display:none!important}
+.widget-compose.locked textarea,.widget-compose.locked button,.widget-compose.locked .clip-btn{display:none!important}
+#imgPreviewBar{display:none;background:#111222;padding:6px 11px 2px;border-top:1px solid rgba(255,255,255,.07)}
+#imgPreviewBar .img-bar-inner{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border-radius:10px;padding:5px 8px}
+#imgPreviewBar img{width:34px;height:34px;object-fit:cover;border-radius:6px;flex-shrink:0}
+#imgPreviewBar span{font-size:11px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#imgPreviewBar button{border:none;background:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1;padding:0 2px;flex-shrink:0}
 .flow-note{font-size:12px;color:#a7adbd;line-height:1.35;margin-top:8px}
 .form-box.submitted{display:none!important}
 .pending-box{background:rgba(245,197,66,.09);border:1px solid rgba(245,197,66,.25);border-radius:18px;padding:14px;margin:12px 0}
@@ -81,7 +89,14 @@ input,textarea{width:100%;border:1px solid rgba(255,255,255,.12);background:#fff
     <div id="mainMenu" class="welcome-card hidden"></div>
     <div id="messages"></div>
   </div>
-  <div id="composeBox" class="widget-compose locked"><div id="composeLockText">Elegí una opción para continuar.</div><textarea id="freeInput" rows="1" placeholder="Escribí tu consulta..."></textarea><button class="send-btn" onclick="sendFreeMessage()">➤</button></div>
+  <div id="imgPreviewBar"><div class="img-bar-inner"><img id="imgPreviewThumb" src="" alt=""><span id="imgPreviewName"></span><button onclick="clearComposerImage()">×</button></div></div>
+  <div id="composeBox" class="widget-compose locked">
+    <div id="composeLockText">Elegí una opción para continuar.</div>
+    <button class="clip-btn" onclick="$('composeFileInput').click()" title="Adjuntar imagen">📎</button>
+    <input id="composeFileInput" type="file" accept="image/*" style="display:none" onchange="queueComposerFile(this)">
+    <textarea id="freeInput" rows="1" placeholder="Escribí tu consulta..."></textarea>
+    <button class="send-btn" onclick="sendFreeMessage()">➤</button>
+  </div>
 </section>
 <div id="toast" class="toast"></div>
 <script>
@@ -98,7 +113,7 @@ const state={
   solicitudId:localStorage.getItem("bet300_solicitud_id")||"",
   chatId:localStorage.getItem("bet300_chat_id")||"",
   chatToken:localStorage.getItem("bet300_chat_token")||"",
-  selectedFile:null, billetera:null, chatLibre:false,
+  selectedFile:null, billetera:null, chatLibre:false, composerImage:null,
   pendingTipo:localStorage.getItem("bet300_pending_tipo")||"",
   seenMsgIds:new Set(),
   portalThreadSeen:new Set(JSON.parse(localStorage.getItem("bet300_portal_thread_seen")||"[]")),
@@ -134,7 +149,13 @@ function toggleWidget(open){
     stopChatPoll();stopPortalThreadPoll();stopEstadoPoll();
   }
 }
-function addMsg(text,who="bot"){const wrap=document.createElement("div");wrap.className="msg "+(who==="user"?"user":"bot");wrap.innerHTML='<div class="bubble">'+String(text)+'</div><div class="meta">'+(who==="user"?"Vos":"BET300")+" · "+now()+'</div>';$("messages").appendChild(wrap);scrollBottom()}
+function addMsg(text,who="bot",imgUrl=null){
+  const wrap=document.createElement("div");
+  wrap.className="msg "+(who==="user"?"user":"bot");
+  const imgHtml=imgUrl?`<img class="chat-img" src="${esc(imgUrl)}" onclick="window.open('${esc(imgUrl)}','_blank')" onerror="this.style.display='none'" alt="imagen">`:""
+  wrap.innerHTML='<div class="bubble">'+String(text)+imgHtml+'</div><div class="meta">'+(who==="user"?"Vos":"BET300")+" · "+now()+'</div>';
+  $("messages").appendChild(wrap);scrollBottom();
+}
 async function rpc(fn,params){if(!sb)return{data:null,error:{message:"Supabase no configurado"}};const{data,error}=await sb.rpc(fn,params||{});return{data,error}}
 function normalize(data){if(!data)return null;if(Array.isArray(data))return data[0]||null;if(data.data)return Array.isArray(data.data)?data.data[0]:data.data;return data}
 
@@ -153,7 +174,7 @@ async function pollOperatorMessages(){
     const isOp=emisor.includes("OPER")||emisor.includes("ADMIN")||emisor.includes("PANEL")||emisor.includes("SIST")||emisor.includes("BOT")||emisor.includes("AUTO");
     const texto=m.mensaje||m.texto||"";
     // Convertir \n a <br> para que los saltos de línea del panel se vean correctamente
-    if(isOp&&texto){const tk=texto.substring(0,200);if(state.shownTexts.has(tk))return;state.shownTexts.add(tk);addMsg(escMsg(texto),"bot");notificarLocal("BET300 · Operador",texto.substring(0,100),"/","bet300-op");}
+    if(isOp&&(texto||m.imagen_url)){const tk=(texto||m.imagen_url||"").substring(0,200);if(state.shownTexts.has(tk))return;state.shownTexts.add(tk);addMsg(escMsg(texto),"bot",m.imagen_url||null);if(texto)notificarLocal("BET300 · Operador",texto.substring(0,100),"/","bet300-op");}
   });
 }
 
@@ -189,11 +210,12 @@ async function pollPortalThread(){
     const origen=String(m.origen||"").toUpperCase();
     const texto=m.mensaje||"";
     // Mostramos en portal solo respuestas del panel/operador para evitar duplicar mensajes propios
-    if(origen==="OPERADOR"&&texto){
-      const tk=texto.substring(0,200);
+    if(origen==="OPERADOR"&&(texto||m.imagen_url||m.imagen)){
+      const imgUrl=m.imagen_url||m.imagen||null;
+      const tk=(texto||imgUrl||"").substring(0,200);
       if(state.shownTexts.has(tk))return;
       state.shownTexts.add(tk);
-      addMsg(escMsg(texto),"bot");
+      addMsg(escMsg(texto),"bot",imgUrl);
     }
   });
   savePortalThreadSeen();
@@ -296,7 +318,8 @@ function cambiarUsuario(){
 function _confirmarCambioUsuario(){
   stopChatPoll();stopEstadoPoll();
   ["bet300_usuario","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen"].forEach(k=>localStorage.removeItem(k));
-  Object.assign(state,{usuario:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set()});
+  Object.assign(state,{usuario:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),composerImage:null});
+  clearComposerImage();
   $("messages").innerHTML="";
   renderUserGate();
 }
@@ -486,18 +509,39 @@ async function initRoute(){
   console.log("[BET300 V16.5] canal",state.pcCodigo,"ruta",state.publicCode);
 }
 
-// ── Comprobante upload ────────────────────────────────────────────────────
-async function subirComprobante(file){
+// ── Image upload (comprobantes + chat) ───────────────────────────────────
+async function subirImagen(file){
   if(!sb||!file)return null;
   if(file.size>5*1024*1024){toast("El archivo supera 5 MB");return null;}
-  const ext=(file.name.split(".").pop()||"jpg").toLowerCase();
+  const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"jpg");
   const path=`${(state.usuario||"anonimo").replace(/[^a-z0-9_-]/gi,"_")}/${Date.now()}.${ext}`;
   try{
     const{error}=await sb.storage.from("comprobantes").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type});
-    if(error){console.warn("[comprobante upload]",error);return null;}
+    if(error){console.warn("[img upload]",error);return null;}
     const{data:urlData}=sb.storage.from("comprobantes").getPublicUrl(path);
     return urlData?.publicUrl||null;
-  }catch(e){console.warn("[comprobante]",e);return null;}
+  }catch(e){console.warn("[img upload]",e);return null;}
+}
+
+// ── Composer image (adjunto en chat) ─────────────────────────────────────
+function queueComposerFile(input){
+  const file=input?.files?.[0];
+  if(!file)return;
+  state.composerImage=file;
+  const thumb=$("imgPreviewThumb"),nom=$("imgPreviewName"),bar=$("imgPreviewBar");
+  if(!bar)return;
+  nom.textContent=file.name;
+  if(file.type.startsWith("image/")){thumb.src=URL.createObjectURL(file);thumb.style.display="";}
+  else thumb.style.display="none";
+  bar.style.display="";
+  scrollBottom();
+}
+function clearComposerImage(){
+  state.composerImage=null;
+  const bar=$("imgPreviewBar"),thumb=$("imgPreviewThumb"),inp=$("composeFileInput");
+  if(bar)bar.style.display="none";
+  if(thumb){thumb.src="";thumb.style.display="none";}
+  if(inp)inp.value="";
 }
 
 // ── Billetera ─────────────────────────────────────────────────────────────
@@ -549,10 +593,6 @@ async function renderCargaForm(){
       <div><label>Monto transferido</label><input id="cargaMonto" type="number" min="1" placeholder="Ej: 5000"></div>
       <div><label>Titular que transfiere</label><input id="cargaTitular" placeholder="Ej: Maria Lopez"></div>
     </div>
-    <label>Comprobante (opcional)</label>
-    <label class="file-label" for="cargaComprobante">📎 Adjuntar captura de transferencia</label>
-    <input id="cargaComprobante" type="file" accept="image/*,application/pdf" style="display:none" onchange="previewComprobante(this)">
-    <div id="comprobantePreview" class="file-preview"><img id="comprobanteImg" src="" alt=""><span id="comprobanteNombre" style="font-size:12px;color:var(--muted)"></span></div>
     <button id="btnEnviarCarga" class="action-btn" onclick="enviarSolicitudCargaDirecta()">Ya transferí · Enviar solicitud</button>
     <button class="action-btn secondary-btn" style="margin-top:6px" onclick="startFlow('SOPORTE')">Necesito ayuda</button>
   </div>`);
@@ -572,29 +612,15 @@ async function renderCargaForm(){
   scrollBottom();
 }
 
-function previewComprobante(input){
-  const file=input?.files?.[0];
-  const prev=$("comprobantePreview"),img=$("comprobanteImg"),nom=$("comprobanteNombre");
-  if(!file||!prev)return;
-  nom.textContent=file.name;
-  if(file.type.startsWith("image/")){img.src=URL.createObjectURL(file);img.style.display="";}
-  else{img.style.display="none";}
-  prev.classList.add("show");
-}
-
 async function enviarSolicitudCargaDirecta(){
   const monto=($("cargaMonto")?.value||"").trim();
   const titular=($("cargaTitular")?.value||"").trim();
   if(!monto||!titular)return toast("Completá monto y titular");
   const btn=$("btnEnviarCarga");
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
-  const fileInput=$("cargaComprobante");
-  const file=fileInput?.files?.[0]||null;
-  addMsg(`Quiero cargar $${monto} · Titular: ${esc(titular)}`+(file?" · Comprobante adjunto":""),"user");
+  addMsg(`Quiero cargar $${monto} · Titular: ${esc(titular)}`,"user");
   cerrarFormActivo("formCargaActiva");
-  let comprobanteUrl=null;
-  if(file){comprobanteUrl=await subirComprobante(file);}
-  await enviarSolicitudCarga(state.usuario,monto,titular,comprobanteUrl);
+  await enviarSolicitudCarga(state.usuario,monto,titular);
 }
 
 async function copyText(t,btn){if(!t)return;await navigator.clipboard.writeText(t);btn.textContent="Copiado";setTimeout(()=>btn.textContent="Copiar",1200);}
@@ -605,13 +631,13 @@ function limpiarSolicitudAnteriorAntesDeNueva(){
   ["bet300_solicitud_id","bet300_pending_tipo","bet300_chat_id","bet300_chat_token"].forEach(k=>localStorage.removeItem(k));
 }
 
-async function enviarSolicitudCarga(usuario,monto,titular,comprobanteUrl=null){
+async function enviarSolicitudCarga(usuario,monto,titular){
   limpiarSolicitudAnteriorAntesDeNueva();
   const bp=billeteraPayloadPlano();
-  const payload={usuario,monto:Number(monto),titular,pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CARGA",...bp,...(comprobanteUrl?{comprobante_url:comprobanteUrl}:{})};
+  const payload={usuario,monto:Number(monto),titular,pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CARGA",...bp};
   const destino=bp.billetera_nombre?`${bp.billetera_nombre}${bp.billetera_alias?" · "+bp.billetera_alias:""}`:null;
-  let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_destino:destino,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular+(comprobanteUrl?" [con comprobante]":""),p_metadata:payload});
-  if(res.error){console.warn("[V16.5]",res.error);res=await rpc("landing_crear_solicitud_v3_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_comprobante_url:comprobanteUrl||null,p_extra:payload});}
+  let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_destino:destino,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_metadata:payload});
+  if(res.error){console.warn("[V16.5]",res.error);res=await rpc("landing_crear_solicitud_v3_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_comprobante_url:null,p_extra:payload});}
   if(res.error){res=await rpc("landing_crear_chat_v2_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_tipo:"CARGA",p_extra:payload});}
   if(res.error){addMsg("No pudimos enviar la solicitud automáticamente. Escribinos por acá y un operador te responde.","bot");setComposeEnabled(true,"");return;}
   const data=normalize(res.data)||res.data||{};
@@ -698,28 +724,25 @@ function renderSoporteForm(){
 }
 
 // ── Mensajería libre ──────────────────────────────────────────────────────
-async function enviarMensajeSoporte(txt){
+async function enviarMensajeSoporte(txt,imagenUrl=null){
   const mensaje=String(txt||"").trim();
-  if(!mensaje)return;
+  if(!mensaje&&!imagenUrl)return;
   let res=null;
 
-  // 1) Si ya tenemos chatId + chatToken, enviar en chat existente
   if(state.chatId&&state.chatToken){
     res=await rpc("landing_enviar_mensaje_v2",{
       p_chat_id:Number(state.chatId),p_chat_token:state.chatToken,
-      p_emisor:state.usuario,p_mensaje:mensaje,p_imagen_url:""
+      p_emisor:state.usuario,p_mensaje:mensaje,p_imagen_url:imagenUrl||""
     });
   }
 
-  // 2) Sin chatId o si falló: crear hilo de soporte vía solicitud tipo SOPORTE
-  // (el mismo RPC confiable que usa CARGA — retorna chat_id+chat_token)
   if(!res||res.error){
     const bp=billeteraPayloadPlano();
-    const payload={usuario:state.usuario,pc_codigo:state.pcCodigo||"P1",public_code:state.publicCode,tipo:"SOPORTE",...bp};
+    const payload={usuario:state.usuario,pc_codigo:state.pcCodigo||"P1",public_code:state.publicCode,tipo:"SOPORTE",...bp,...(imagenUrl?{imagen_url:imagenUrl}:{})};
     res=await rpc("landing_portal_v16_crear_solicitud",{
       p_public_code:state.publicCode,p_usuario:state.usuario,
       p_tipo:"SOPORTE",p_monto:0,p_titular:"",p_destino:null,
-      p_mensaje:mensaje,p_metadata:payload
+      p_mensaje:mensaje||(imagenUrl?"[imagen adjunta]":""),p_metadata:payload
     });
     if(!res.error){
       const d=normalize(res.data)||res.data||{};
@@ -736,11 +759,19 @@ async function enviarMensajeSoporte(txt){
 async function sendFreeMessage(){
   if(!state.chatLibre)return toast("Elegí una opción para continuar");
   const input=$("freeInput"),txt=input.value.trim();
-  if(!txt)return;
+  const hasImg=!!state.composerImage;
+  if(!txt&&!hasImg)return;
   input.value="";
-  addMsg(esc(txt),"user");
+  if(txt)addMsg(esc(txt),"user");
   if(!state.usuario){addMsg("Para ayudarte mejor, indicá tu usuario de plataforma o elegí una opción del menú.","bot");return;}
-  await enviarMensajeSoporte(txt);
+  let imgUrl=null;
+  if(hasImg){
+    const file=state.composerImage;
+    clearComposerImage();
+    imgUrl=await subirImagen(file);
+    if(imgUrl)addMsg("","user",imgUrl);
+  }
+  await enviarMensajeSoporte(txt||"",imgUrl);
 }
 
 // ── Push PWA ──────────────────────────────────────────────────────────────
@@ -804,6 +835,25 @@ function chequearPendienteViejo(){
     addMsg(`⚠️ Tu solicitud lleva más de ${Math.round(hs)} horas pendiente. Si ya fue procesada o hubo un problema, podés limpiarla manualmente desde "Marcar como resuelta".`,"bot");
   },3000);
 }
+
+// ── Paste de imagen en el chat (Ctrl+V) ──────────────────────────────────
+document.addEventListener("paste",e=>{
+  if(!state.chatLibre)return;
+  const items=[...(e.clipboardData?.items||[])];
+  const imgItem=items.find(it=>it.type.startsWith("image/"));
+  if(!imgItem)return;
+  e.preventDefault();
+  const file=imgItem.getAsFile();
+  if(!file)return;
+  state.composerImage=file;
+  const thumb=$("imgPreviewThumb"),nom=$("imgPreviewName"),bar=$("imgPreviewBar");
+  if(!bar)return;
+  nom.textContent="Imagen pegada del portapapeles";
+  thumb.src=URL.createObjectURL(file);
+  thumb.style.display="";
+  bar.style.display="";
+  scrollBottom();
+});
 
 window.addEventListener("load",async()=>{
   if("serviceWorker" in navigator){
