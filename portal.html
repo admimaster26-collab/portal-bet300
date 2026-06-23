@@ -536,13 +536,15 @@ async function subirImagen(file){
   if(!sb||!file)return null;
   if(file.size>5*1024*1024){toast("El archivo supera 5 MB");return null;}
   const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"jpg");
-  const path=`${(state.usuario||"anonimo").replace(/[^a-z0-9_-]/gi,"_")}/${Date.now()}.${ext}`;
+  const path=`${(state.usuario||"anonimo").replace(/[^a-z0-9_-]/gi,"_")}/${Date.now()}_${Math.random().toString(36).slice(2,6)}.${ext}`;
   try{
-    const{error}=await sb.storage.from("comprobantes").upload(path,file,{cacheControl:"3600",upsert:false,contentType:file.type});
-    if(error){console.warn("[img upload]",error);return null;}
+    const{data:upData,error}=await sb.storage.from("comprobantes").upload(path,file,{cacheControl:"3600",upsert:true,contentType:file.type});
+    if(error){console.error("[img upload error]",error.message||error);toast("No se pudo subir la imagen");return null;}
     const{data:urlData}=sb.storage.from("comprobantes").getPublicUrl(path);
-    return urlData?.publicUrl||null;
-  }catch(e){console.warn("[img upload]",e);return null;}
+    const url=urlData?.publicUrl||null;
+    console.log("[img upload ok]",url);
+    return url;
+  }catch(e){console.error("[img upload exception]",e);return null;}
 }
 
 // ── Composer image (adjunto en chat) ─────────────────────────────────────
