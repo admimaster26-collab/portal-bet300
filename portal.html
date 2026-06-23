@@ -84,6 +84,7 @@ input,textarea{width:100%;border:1px solid rgba(255,255,255,.12);background:#fff
 <button id="floatBtn" class="float-btn" onclick="toggleWidget(true)"><span>💬</span><span>Cajero / Soporte</span></button>
 <section id="widget" class="widget">
   <div class="widget-head"><div><div class="brand-logo"><span>BET</span><span>300</span></div><div class="head-sub">Centro de asistencia integrado</div></div><button class="icon-btn" onclick="toggleWidget(false)">×</button></div>
+  <div id="connBanner" style="display:none;background:#450a0a;color:#fca5a5;font-size:12px;font-weight:900;padding:7px 14px;align-items:center;gap:8px;border-bottom:1px solid rgba(239,68,68,.25);flex-shrink:0"><span>⚠</span><span>Sin conexión · Reconectando...</span></div>
   <div id="widgetBody" class="widget-body">
     <div id="userGate" class="user-gate"></div>
     <div id="mainMenu" class="welcome-card hidden"></div>
@@ -137,6 +138,21 @@ function tiempoEspera(){
   return `Hace ${hs} hora${hs>1?"s":""}`;
 }
 function toast(t){const el=$("toast");el.textContent=t;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200)}
+
+// ── Monitor de conexión ────────────────────────────────────────────────────
+let _connFails=0;
+function _showOffline(){const b=$("connBanner");if(b)b.style.display="flex";}
+function _hideOffline(){const b=$("connBanner");if(b)b.style.display="none";_connFails=0;}
+function _onPollOk(){if(_connFails>0)_hideOffline();_connFails=0;}
+function _onPollFail(){_connFails++;if(_connFails>=3)_showOffline();}
+window.addEventListener("offline",()=>_showOffline());
+window.addEventListener("online",()=>{
+  _hideOffline();
+  if(!$("widget")?.classList.contains("open"))return;
+  if(state.chatId)startChatPoll();
+  if(state.usuario)startPortalThreadPoll();
+  if(tieneSolicitudPendiente())startEstadoPoll();
+});
 function scrollBottom(){const b=$("widgetBody");b.scrollTop=b.scrollHeight}
 function toggleWidget(open){
   $("widget").classList.toggle("open",!!open);
@@ -165,7 +181,8 @@ function stopChatPoll(){if(chatPollTimer){clearInterval(chatPollTimer);chatPollT
 async function pollOperatorMessages(){
   if(!state.chatId||!$("widget")?.classList.contains("open"))return;
   const res=await rpc("landing_leer_chat_v2",{p_chat_id:Number(state.chatId),p_chat_token:state.chatToken});
-  if(res.error||!Array.isArray(res.data))return;
+  if(res.error||!Array.isArray(res.data)){_onPollFail();return;}
+  _onPollOk();
   res.data.forEach(m=>{
     const msgKey=String(m.id||m.created_at||JSON.stringify(m));
     if(state.seenMsgIds.has(msgKey))return;
@@ -197,7 +214,8 @@ function threadKey(m){
 async function pollPortalThread(){
   if(!state.usuario||!$("widget")?.classList.contains("open"))return;
   const res=await rpc("landing_portal_chat_thread_get",{p_usuario:state.usuario,p_public_code:state.publicCode});
-  if(res.error){console.warn("[chat_thread]",res.error);return;}
+  if(res.error){console.warn("[chat_thread]",res.error);_onPollFail();return;}
+  _onPollOk();
   const d=normalize(res.data)||res.data||{};
   const thread=Array.isArray(d.chat_thread)?d.chat_thread:[];
   if(!thread.length)return;
