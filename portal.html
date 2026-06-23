@@ -290,6 +290,7 @@ async function guardarUsuarioInicial(){
   localStorage.setItem("bet300_usuario",usuario);
   addMsg("Usuario vinculado: "+esc(usuario),"bot");
   renderUserGate();
+  setTimeout(()=>subscribePush(),1500);
   iniciarValidacionUsuarioBackground(usuario);
   // Feedback de validación: avisar si el usuario no existe en la plataforma
   setTimeout(()=>{
@@ -721,6 +722,7 @@ function renderSoporteForm(){
   addMsg("Escribí tu consulta en la barra de abajo y un operador te responde por este mismo chat.","bot");
   setComposeEnabled(true,"");
   setTimeout(()=>$("freeInput")?.focus(),80);
+  setTimeout(()=>subscribePush(),1500);
 }
 
 // ── Mensajería libre ──────────────────────────────────────────────────────
