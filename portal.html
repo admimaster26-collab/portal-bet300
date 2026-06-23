@@ -227,13 +227,16 @@ async function pollPortalThread(){
 
     const origen=String(m.origen||"").toUpperCase();
     const texto=m.mensaje||"";
+    if(origen==="OPERADOR"&&(m.imagen_url||m.imagen))console.log("[thread-img]",{fecha:m.fecha,imagen_url:m.imagen_url,imagen:m.imagen?.substring?.(0,60)});
     // Mostramos en portal solo respuestas del panel/operador para evitar duplicar mensajes propios
     if(origen==="OPERADOR"&&(texto||m.imagen_url||m.imagen)){
       const imgUrl=m.imagen_url||m.imagen||null;
-      const tk=(texto||imgUrl||"").substring(0,200);
+      // Use fecha as disambiguator for image-only messages (base64 JPEGs share same first chars)
+      const tk=texto?texto.substring(0,200):(m.fecha||"")+"|img|"+(imgUrl||"").substring(0,80);
       if(state.shownTexts.has(tk))return;
       state.shownTexts.add(tk);
       addMsg(escMsg(texto),"bot",imgUrl);
+      if(!texto&&imgUrl)notificarLocal("BET300 · Operador","[Imagen]","/","bet300-op");
     }
   });
   savePortalThreadSeen();
