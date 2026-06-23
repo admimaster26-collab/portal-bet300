@@ -3,102 +3,224 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
-<meta name="theme-color" content="#f5c542">
+<meta name="theme-color" content="#0a0a12">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BET300">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
-<title>BET300 · Portal V16.5</title>
+<title>BET300 · Portal V17</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}
-:root{--bg:#050510;--panel:#111222;--line:rgba(255,255,255,.12);--text:#f8fafc;--muted:#a7adbd;--gold:#f5c542;--green:#18c964;--blue:#3d5afe;--shadow:0 18px 60px rgba(0,0,0,.45)}
-html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text)}
-#appFrame{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:#050510;z-index:1}
-.float-btn{position:fixed;right:18px;bottom:18px;z-index:20;border:none;border-radius:999px;padding:14px 18px;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--gold),#ffe27a);color:#171200;font-weight:950;font-size:15px;cursor:pointer;box-shadow:0 12px 38px rgba(245,197,66,.32),0 14px 45px rgba(0,0,0,.45)}
-.widget{position:fixed;right:18px;bottom:84px;z-index:30;width:390px;max-width:calc(100vw - 24px);height:620px;max-height:calc(100vh - 105px);background:linear-gradient(180deg,rgba(25,26,44,.96),rgba(10,11,22,.98));border:1px solid rgba(255,255,255,.14);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;display:none;flex-direction:column;backdrop-filter:blur(16px)}
-.widget.open{display:flex}
-.widget-head{padding:16px;background:radial-gradient(circle at top right,rgba(245,197,66,.18),transparent 32%),linear-gradient(135deg,#17182b,#0c0d1a);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
-.brand-logo{font-size:22px;font-weight:950;letter-spacing:-1px}.brand-logo span:first-child{color:var(--gold)}.head-sub{font-size:11px;color:var(--muted);margin-top:2px}
-.icon-btn{border:none;background:rgba(255,255,255,.09);color:#fff;border-radius:12px;width:34px;height:34px;cursor:pointer;font-size:18px}
-.widget-body{flex:1;overflow:auto;padding:14px;background:radial-gradient(circle at 20% 20%,rgba(61,90,254,.09),transparent 28%),radial-gradient(circle at 80% 55%,rgba(245,197,66,.07),transparent 30%),#0b0c18}
-.welcome-card,.form-box{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:14px;margin-bottom:12px}
-.welcome-title{font-weight:950;font-size:18px;margin-bottom:6px}.welcome-txt{font-size:13px;color:#d7dbe7;line-height:1.35}
-.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
-.quick{border:1px solid rgba(255,255,255,.1);background:#15172a;color:#fff;border-radius:16px;padding:13px 10px;cursor:pointer;text-align:left;font-weight:900;min-height:68px}
-.quick small{display:block;color:var(--muted);font-size:11px;font-weight:600;margin-top:4px;line-height:1.25}.quick.gold{background:linear-gradient(135deg,#2b230d,#17172a);border-color:rgba(245,197,66,.35)}.quick.green{background:linear-gradient(135deg,#0d2b1a,#17172a);border-color:rgba(24,201,100,.28)}
-.msg{display:flex;flex-direction:column;margin-bottom:10px;max-width:88%}.msg.bot,.msg.sys{align-items:flex-start;margin-right:auto}.msg.user{align-items:flex-end;margin-left:auto}
-.bubble{padding:10px 12px;border-radius:16px;font-size:13px;line-height:1.36;word-break:break-word;box-shadow:0 8px 18px rgba(0,0,0,.18);white-space:pre-wrap}
-.msg.bot .bubble,.msg.sys .bubble{background:#1d2334;color:#f7f7fb;border-bottom-left-radius:5px;border:1px solid rgba(255,255,255,.04)}.msg.user .bubble{background:linear-gradient(135deg,#314bd8,#6879ff);color:#fff;border-bottom-right-radius:5px}.meta{font-size:10px;color:var(--muted);padding:3px 4px}
-label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#c7cbd6;font-weight:900;margin-bottom:5px}
-input,textarea{width:100%;border:1px solid rgba(255,255,255,.12);background:#fff;color:#111;border-radius:13px;padding:12px;font-size:15px;margin-bottom:10px}textarea{resize:vertical;min-height:76px}.form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.action-btn{width:100%;border:none;border-radius:14px;padding:13px 14px;font-weight:950;font-size:14px;cursor:pointer;background:linear-gradient(135deg,var(--gold),#ffe27a);color:#141008;margin-top:3px}.secondary-btn{background:#262b3d;color:#fff;border:1px solid rgba(255,255,255,.10)}
-.transfer-card{background:linear-gradient(180deg,#1a2035,#111728);border:1px solid rgba(245,197,66,.42);border-radius:18px;padding:13px;margin:10px 0;box-shadow:0 12px 28px rgba(0,0,0,.24)}
-.transfer-title{font-weight:950;color:var(--gold);font-size:16px;margin-bottom:10px}.transfer-field{background:#0e1525;border-radius:13px;padding:10px;margin-bottom:8px;border:1px solid rgba(255,255,255,.06)}.transfer-label{font-size:10px;color:#aeb4c3;text-transform:uppercase;font-weight:950;margin-bottom:4px}.transfer-value{font-size:14px;font-weight:950;color:#fff;word-break:break-all;margin-bottom:7px}
-.copy-btn{border:none;border-radius:11px;background:#252b3e;color:#fff;padding:9px 10px;font-size:12px;font-weight:900;cursor:pointer;width:100%}
-.file-label{display:flex;align-items:center;justify-content:center;gap:8px;background:#1d2334;border:1px dashed rgba(255,255,255,.20);border-radius:14px;padding:12px;color:#e8ebf5;font-size:13px;font-weight:900;cursor:pointer;margin-bottom:10px;text-transform:none;letter-spacing:0}
-.file-preview{display:none;background:rgba(255,255,255,.07);border-radius:13px;padding:8px;margin-bottom:10px;align-items:center;gap:10px}.file-preview.show{display:flex}.file-preview img{width:54px;height:54px;object-fit:cover;border-radius:10px}
-.status-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900;background:rgba(245,197,66,.12);color:#ffe188;border:1px solid rgba(245,197,66,.25);margin-top:8px}
-.widget-compose{border-top:1px solid var(--line);background:#111222;padding:11px;display:grid;grid-template-columns:1fr 44px;gap:8px;align-items:end;min-height:64px}
-#freeInput{min-height:42px;height:42px;max-height:86px;overflow:auto;margin:0;resize:none;border-radius:14px;font-size:14px}
-.send-btn{height:42px;min-width:44px;width:44px;padding:0;border:none;border-radius:14px;background:var(--blue);color:#fff;font-weight:950;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px}
-.clip-btn{height:42px;min-width:44px;width:44px;padding:0;border:none;border-radius:14px;background:rgba(255,255,255,.09);color:#c7cbd6;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
-.clip-btn:hover{background:rgba(255,255,255,.16)}
-.bubble img.chat-img{max-width:100%;border-radius:10px;margin-top:6px;display:block;cursor:pointer;border:1px solid rgba(255,255,255,.1)}
-.toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);z-index:60;background:#111827;color:#fff;border:1px solid rgba(255,255,255,.12);box-shadow:var(--shadow);padding:12px 15px;border-radius:14px;font-weight:900;font-size:13px;display:none}.toast.show{display:block}
-@media(max-width:700px){.float-btn{right:14px;bottom:16px;padding:13px 15px}.widget{right:8px;left:8px;bottom:76px;width:auto;height:72vh;max-height:72vh;border-radius:22px}.quick-grid{grid-template-columns:1fr 1fr}.form-row{grid-template-columns:1fr}.widget-head{padding:14px}}
-@media(max-width:390px){.quick-grid{grid-template-columns:1fr}.widget{height:75vh;max-height:75vh}}
+/* ════════════════════════════════════════════════════════════════════════
+   BET300 · Portal V17 — Navegación por PANTALLAS (no chat-stream)
+   El backend (RPC) NO cambió. Cada acción abre su propia vista estable;
+   el chat es la única pantalla con feed. Adiós scroll-jump al tocar botones.
+   ════════════════════════════════════════════════════════════════════════ */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#08080f; --surface:#13131f; --surface-2:#1b1b2b;
+  --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+  --text:#f4f5fb; --muted:#9298ad;
+  --gold:#f5c542; --gold-2:#ffd980; --green:#26d07c; --blue:#5b78ff; --danger:#ff5468;
+  --r:20px; --r-sm:14px; --shadow:0 26px 80px rgba(0,0,0,.55);
+  --font:'Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font)}
+button,input,textarea{font-family:var(--font)}
+::selection{background:rgba(245,197,66,.3)}
+.hidden{display:none!important}
 
-.user-gate{background:rgba(255,255,255,.055);border:1px solid rgba(245,197,66,.22);border-radius:18px;padding:14px;margin-bottom:12px}
-.user-gate-title{font-weight:950;font-size:18px;margin-bottom:6px;color:#ffe188}
-.user-chip{display:inline-flex;align-items:center;gap:8px;background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.25);color:#ffe188;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:950;margin:8px 0 2px}
-.link-btn{border:none;background:transparent;color:#ffe188;font-size:12px;font-weight:900;cursor:pointer;text-decoration:underline;padding:0;margin-top:6px}
-.widget-compose.locked{display:flex!important;align-items:center;justify-content:center;color:#a7adbd;font-size:13px;font-weight:900;min-height:64px;text-align:center;padding:12px 14px}
-.widget-compose.locked #composeLockText{width:100%;line-height:1.35}
-.widget-compose:not(.locked){display:grid!important;grid-template-columns:44px 1fr 44px;gap:8px;align-items:end}
-.widget-compose:not(.locked) #composeLockText{display:none}
-.widget-compose.locked textarea,.widget-compose.locked button,.widget-compose.locked .clip-btn{display:none!important}
-#imgPreviewBar{display:none;background:#111222;padding:6px 11px 2px;border-top:1px solid rgba(255,255,255,.07)}
-#imgPreviewBar .img-bar-inner{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border-radius:10px;padding:5px 8px}
-#imgPreviewBar img{width:34px;height:34px;object-fit:cover;border-radius:6px;flex-shrink:0}
-#imgPreviewBar span{font-size:11px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#imgPreviewBar button{border:none;background:none;color:var(--muted);cursor:pointer;font-size:20px;line-height:1;padding:0 2px;flex-shrink:0}
-.flow-note{font-size:12px;color:#a7adbd;line-height:1.35;margin-top:8px}
-.form-box.submitted{display:none!important}
-.pending-box{background:rgba(245,197,66,.09);border:1px solid rgba(245,197,66,.25);border-radius:18px;padding:14px;margin:12px 0}
-.pending-title{font-weight:950;color:#ffe188;font-size:16px;margin-bottom:6px}
-.pending-text{font-size:13px;color:#d7dbe7;line-height:1.38}
-.pending-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-.pending-actions .action-btn{margin:0;flex:1;min-width:130px}
-.main-menu-disabled{display:none!important}
-.user-gate.pending-mode{border-color:rgba(245,197,66,.35);background:rgba(245,197,66,.08)}
-.pending-only-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
-.pending-only-actions button{margin:0}
-@media(max-width:390px){.pending-only-actions{grid-template-columns:1fr}}
+#appFrame{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:var(--bg);z-index:1}
+
+/* ── Botón flotante ────────────────────────────────────────────────────── */
+.float-btn{position:fixed;right:20px;bottom:20px;z-index:20;border:none;cursor:pointer;display:flex;align-items:center;gap:11px;
+  padding:0 20px 0 14px;height:58px;border-radius:999px;background:linear-gradient(135deg,#ffdf7e,var(--gold) 55%,#e9a700);
+  color:#231900;font-weight:800;font-size:15px;box-shadow:0 14px 34px rgba(245,197,66,.42),0 10px 40px rgba(0,0,0,.5);transition:transform .18s}
+.float-btn:hover{transform:translateY(-2px)}.float-btn:active{transform:scale(.96)}
+.float-btn .fb-ico{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.16);font-size:18px}
+.float-btn .fb-sub{display:block;font-size:10px;font-weight:700;opacity:.7;letter-spacing:.3px;text-transform:uppercase;margin-top:-1px}
+.float-badge{position:absolute;top:-4px;right:-2px;min-width:22px;height:22px;border-radius:999px;background:var(--danger);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid var(--bg)}
+
+/* ── Widget ────────────────────────────────────────────────────────────── */
+.widget{position:fixed;right:20px;bottom:90px;z-index:30;width:404px;max-width:calc(100vw - 28px);height:640px;max-height:calc(100vh - 116px);
+  background:linear-gradient(180deg,#15151f,#0c0c15);border:1px solid var(--line-2);border-radius:24px;box-shadow:var(--shadow);
+  overflow:hidden;display:none;flex-direction:column}
+.widget.open{display:flex;animation:popIn .26s cubic-bezier(.2,.9,.25,1)}
+@keyframes popIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+
+.widget-head{position:relative;flex-shrink:0;padding:14px 14px;display:flex;align-items:center;gap:11px;
+  background:radial-gradient(140% 120% at 90% -20%,rgba(245,197,66,.20),transparent 50%),linear-gradient(135deg,#1b1c2c,#101019);border-bottom:1px solid var(--line)}
+.head-avatar{width:40px;height:40px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--gold),#e6a400);color:#221900;font-weight:900;font-size:12px;box-shadow:0 6px 16px rgba(245,197,66,.3)}
+.head-info{flex:1;min-width:0}
+.brand-logo{font-size:16px;font-weight:900;letter-spacing:-.3px;line-height:1.1}.brand-logo span:first-child{color:var(--gold)}
+.head-sub{font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px}
+.head-sub .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(38,208,124,.18)}
+.icon-btn{border:none;background:rgba(255,255,255,.07);color:#d3d6e2;border-radius:11px;width:36px;height:36px;cursor:pointer;font-size:19px;line-height:1;transition:background .15s;flex-shrink:0}
+.icon-btn:hover{background:rgba(255,255,255,.14)}
+
+#connBanner{background:linear-gradient(90deg,#3a0d12,#4a1118);color:#ffb3bd;font-size:12px;font-weight:700;padding:8px 14px;align-items:center;gap:8px;border-bottom:1px solid rgba(255,84,104,.25);flex-shrink:0}
+
+/* ── Contenedor de pantallas ───────────────────────────────────────────── */
+.widget-main{flex:1;position:relative;overflow:hidden}
+.screen{position:absolute;inset:0;overflow-y:auto;padding:16px;
+  background:radial-gradient(120% 70% at 12% 0%,rgba(91,120,255,.08),transparent 38%),radial-gradient(120% 70% at 100% 20%,rgba(245,197,66,.06),transparent 40%),var(--bg)}
+.screen::-webkit-scrollbar{width:8px}.screen::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:8px}
+#screenChat{padding:0;display:flex;flex-direction:column}
+.screen-title{font-size:18px;font-weight:900;letter-spacing:-.3px;margin-bottom:14px}
+
+/* ── Inicio ────────────────────────────────────────────────────────────── */
+.hero{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.user-chip{display:inline-flex;align-items:center;gap:7px;background:rgba(245,197,66,.13);border:1px solid rgba(245,197,66,.3);color:var(--gold-2);border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:800}
+.link-btn{border:none;background:transparent;color:var(--gold-2);font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0}
+.link-btn:hover{color:var(--gold)}
+.menu-title{font-size:13px;color:var(--muted);font-weight:700;margin:6px 2px 10px}
+.user-gate-title{font-weight:900;font-size:20px;margin-bottom:8px;letter-spacing:-.3px}
+.welcome-txt{font-size:13.5px;color:#cfd3e2;line-height:1.5}
+.flow-note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}
+
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;cursor:pointer;
+  border:1px solid var(--line-2);background:linear-gradient(170deg,#1e1e30,#161623);color:var(--text);border-radius:18px;padding:15px 14px;min-height:104px;
+  transition:transform .16s,border-color .16s,box-shadow .16s}
+.tile:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,0,0,.32)}
+.tile:active{transform:translateY(-1px) scale(.99)}
+.tile:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.tile-ico{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:21px;background:rgba(255,255,255,.06);border:1px solid var(--line)}
+.tile-tx{font-weight:800;font-size:14.5px;line-height:1.2}.tile-tx small{display:block;color:var(--muted);font-size:11.5px;font-weight:600;margin-top:4px;line-height:1.3}
+.tile.gold .tile-ico{background:rgba(245,197,66,.16);border-color:rgba(245,197,66,.4)}
+.tile.green .tile-ico{background:rgba(38,208,124,.16);border-color:rgba(38,208,124,.36)}
+.tile.wide{grid-column:1/-1;flex-direction:row;align-items:center;min-height:auto}
+.tile .badge{position:absolute;top:11px;right:11px;min-width:20px;height:20px;border-radius:999px;background:var(--danger);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 5px}
+
+.pending-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;
+  background:linear-gradient(180deg,rgba(245,197,66,.12),rgba(245,197,66,.04));border:1px solid rgba(245,197,66,.32);border-radius:16px;padding:14px;margin-bottom:14px}
+.pending-banner .chev{font-size:24px;color:var(--gold-2);line-height:1}
+.pending-title{font-weight:900;color:var(--gold-2);font-size:14.5px}
+.pending-text{font-size:12.5px;color:#cfd3e2;margin-top:3px;line-height:1.4}
+
+/* ── Formularios (vista fija) ──────────────────────────────────────────── */
+.form-card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#aab0c4;font-weight:800;margin-bottom:6px}
+input,textarea{width:100%;border:1px solid var(--line-2);background:#0e0e19;color:var(--text);border-radius:var(--r-sm);padding:13px 14px;font-size:15px;margin-bottom:12px;transition:border-color .15s,box-shadow .15s}
+input::placeholder,textarea::placeholder{color:#5a607a}
+input:focus,textarea:focus{outline:none;border-color:rgba(245,197,66,.65);box-shadow:0 0 0 3px rgba(245,197,66,.16)}
+textarea{resize:vertical;min-height:76px}
+.muted-line{color:var(--muted);font-size:13px;padding:6px 0}
+
+.action-btn{width:100%;border:none;border-radius:var(--r-sm);padding:14px;font-weight:900;font-size:14.5px;cursor:pointer;margin-top:2px;
+  background:linear-gradient(135deg,#ffdf7e,var(--gold) 60%,#eaa800);color:#241a00;box-shadow:0 10px 24px rgba(245,197,66,.26);transition:transform .15s,box-shadow .15s,filter .15s}
+.action-btn:hover{filter:brightness(1.04)}.action-btn:active{transform:scale(.985)}.action-btn:disabled{opacity:.6;cursor:default;box-shadow:none}
+.secondary-btn{background:#23233a;color:var(--text);border:1px solid var(--line-2);box-shadow:none}.secondary-btn:hover{filter:none;background:#2b2b46}
+
+/* ── Tarjeta de transferencia ──────────────────────────────────────────── */
+.transfer-card{background:linear-gradient(180deg,#211f12,#14121c);border:1px solid rgba(245,197,66,.45);border-radius:18px;padding:15px;margin-bottom:14px;box-shadow:0 14px 30px rgba(0,0,0,.3)}
+.transfer-title{font-weight:900;color:var(--gold);font-size:15px;margin-bottom:12px}
+.transfer-field{background:#0c0c16;border-radius:13px;padding:11px 12px;margin-bottom:9px;border:1px solid var(--line)}
+.transfer-label{font-size:10px;color:#9aa0b4;text-transform:uppercase;font-weight:800;letter-spacing:.5px;margin-bottom:5px}
+.transfer-value{font-size:15px;font-weight:800;color:#fff;word-break:break-all;margin-bottom:9px}
+.copy-btn{border:none;border-radius:11px;background:#26263e;color:#fff;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;width:100%;transition:background .15s}
+.copy-btn:hover{background:#32324f}.copy-btn:active{background:var(--blue)}
+
+/* ── Estado ────────────────────────────────────────────────────────────── */
+.estado-card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:var(--r);padding:22px 18px;text-align:center}
+.estado-card.pending{border-color:rgba(245,197,66,.32);background:linear-gradient(180deg,rgba(245,197,66,.1),rgba(245,197,66,.03))}
+.estado-card.ok{border-color:rgba(38,208,124,.4);background:linear-gradient(180deg,rgba(38,208,124,.12),rgba(38,208,124,.03))}
+.estado-card.bad{border-color:rgba(255,84,104,.4);background:linear-gradient(180deg,rgba(255,84,104,.1),rgba(255,84,104,.03))}
+.estado-ico{font-size:40px;margin-bottom:10px}
+.estado-h{font-weight:900;font-size:18px;margin-bottom:6px}
+.estado-sub{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.estado-tx{font-size:13px;color:#cfd3e2;line-height:1.5;margin-bottom:14px}
+.estado-live{font-size:12px;font-weight:800;color:var(--gold-2);background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.25);border-radius:999px;padding:7px 12px;display:inline-block;margin-bottom:16px}
+.estado-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px}
+.estado-actions .action-btn{margin:0}
+
+/* ── Chat ──────────────────────────────────────────────────────────────── */
+.messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column}
+.messages::-webkit-scrollbar{width:8px}.messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:8px}
+.msg{display:flex;flex-direction:column;margin-bottom:12px;max-width:90%;animation:msgIn .2s ease}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.msg.bot,.msg.sys{align-items:flex-start;margin-right:auto}.msg.user{align-items:flex-end;margin-left:auto}
+.bubble{padding:11px 14px;border-radius:18px;font-size:13.5px;line-height:1.45;word-break:break-word;white-space:pre-wrap;box-shadow:0 8px 20px rgba(0,0,0,.2)}
+.msg.bot .bubble,.msg.sys .bubble{background:var(--surface-2);color:#eef0f7;border:1px solid var(--line);border-bottom-left-radius:6px}
+.msg.user .bubble{background:linear-gradient(135deg,#4f6bff,#7b8cff);color:#fff;border-bottom-right-radius:6px}
+.meta{font-size:10.5px;color:var(--muted);padding:4px 5px 0}
+.bubble img.chat-img{max-width:100%;border-radius:12px;margin-top:8px;display:block;cursor:pointer;border:1px solid var(--line-2)}
+.status-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;background:rgba(245,197,66,.14);color:var(--gold-2);border:1px solid rgba(245,197,66,.3);margin:8px 0 2px}
+
+/* ── Compose (solo en chat) ────────────────────────────────────────────── */
+.widget-compose{flex-shrink:0;border-top:1px solid var(--line);background:#0f0f1a;padding:12px;display:grid;grid-template-columns:44px 1fr 46px;gap:9px;align-items:end}
+#freeInput{min-height:44px;height:44px;max-height:96px;overflow:auto;margin:0;resize:none;border-radius:14px;font-size:14px;padding:11px 13px}
+.send-btn{height:44px;width:46px;padding:0;border:none;border-radius:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;background:linear-gradient(135deg,#5b78ff,#7b8cff);color:#fff;box-shadow:0 8px 18px rgba(91,120,255,.35);transition:transform .15s}
+.send-btn:active{transform:scale(.92)}
+.clip-btn{height:44px;width:44px;padding:0;border:none;border-radius:14px;background:rgba(255,255,255,.07);color:#aeb3c6;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.clip-btn:hover{background:rgba(255,255,255,.15)}
+#imgPreviewBar{display:flex;align-items:center;background:#0f0f1a;padding:8px 12px;border-top:1px solid var(--line);flex-shrink:0}
+#imgPreviewBar .img-bar-inner{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.06);border-radius:11px;padding:6px 9px;width:100%}
+#imgPreviewBar img{width:36px;height:36px;object-fit:cover;border-radius:8px;flex-shrink:0}
+#imgPreviewBar span{font-size:11.5px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#imgPreviewBar button{border:none;background:none;color:var(--muted);cursor:pointer;font-size:21px;line-height:1;padding:0 2px;flex-shrink:0}
+
+/* Toast */
+.toast{position:fixed;left:50%;bottom:106px;transform:translateX(-50%) translateY(10px);z-index:60;background:#16161f;color:#fff;border:1px solid var(--line-2);box-shadow:var(--shadow);padding:13px 18px;border-radius:14px;font-weight:800;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:320px;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media(max-width:700px){
+  .float-btn{right:14px;bottom:16px;height:54px}
+  .widget{right:10px;left:10px;bottom:80px;width:auto;height:76vh;max-height:76vh;border-radius:22px}
+}
+@media(max-width:420px){
+  .tiles{grid-template-columns:1fr}
+  .float-btn .fb-text{display:none}.float-btn{padding:0;width:54px;justify-content:center;gap:0}.float-btn .fb-ico{margin:0}
+  .widget{height:82vh;max-height:82vh}
+}
 </style>
 </head>
 <body>
 <iframe id="appFrame" src="https://bet-300.pw" allow="clipboard-read; clipboard-write; fullscreen"></iframe>
-<button id="floatBtn" class="float-btn" onclick="toggleWidget(true)"><span>💬</span><span>Cajero / Soporte</span></button>
+
+<button id="floatBtn" class="float-btn" onclick="toggleWidget(true)">
+  <span class="fb-ico">💬</span>
+  <span class="fb-text">Cajero / Soporte<span class="fb-sub">Cargas · Retiros · Ayuda</span></span>
+  <span id="floatUnread" class="float-badge hidden">0</span>
+</button>
+
 <section id="widget" class="widget">
-  <div class="widget-head"><div><div class="brand-logo"><span>BET</span><span>300</span></div><div class="head-sub">Centro de asistencia integrado</div></div><button class="icon-btn" onclick="toggleWidget(false)">×</button></div>
-  <div id="connBanner" style="display:none;background:#450a0a;color:#fca5a5;font-size:12px;font-weight:900;padding:7px 14px;align-items:center;gap:8px;border-bottom:1px solid rgba(239,68,68,.25);flex-shrink:0"><span>⚠</span><span>Sin conexión · Reconectando...</span></div>
-  <div id="widgetBody" class="widget-body">
-    <div id="userGate" class="user-gate"></div>
-    <div id="mainMenu" class="welcome-card hidden"></div>
-    <div id="messages"></div>
+  <div class="widget-head">
+    <button id="backBtn" class="icon-btn hidden" onclick="goHome()">←</button>
+    <div class="head-avatar">B300</div>
+    <div class="head-info">
+      <div class="brand-logo"><span>BET</span><span>300</span> · Cajero</div>
+      <div class="head-sub"><span class="dot"></span> En línea · respondemos al instante</div>
+    </div>
+    <button class="icon-btn" onclick="toggleWidget(false)">×</button>
   </div>
-  <div id="imgPreviewBar"><div class="img-bar-inner"><img id="imgPreviewThumb" src="" alt=""><span id="imgPreviewName"></span><button onclick="clearComposerImage()">×</button></div></div>
-  <div id="composeBox" class="widget-compose locked">
-    <div id="composeLockText">Elegí una opción para continuar.</div>
+
+  <div id="connBanner" style="display:none"><span>⚠</span><span>Sin conexión · Reconectando...</span></div>
+
+  <div class="widget-main">
+    <div id="screenHome"   class="screen"></div>
+    <div id="screenCarga"  class="screen hidden"></div>
+    <div id="screenRetiro" class="screen hidden"></div>
+    <div id="screenClave"  class="screen hidden"></div>
+    <div id="screenEstado" class="screen hidden"></div>
+    <div id="screenChat"   class="screen hidden">
+      <div id="messages" class="messages"></div>
+    </div>
+  </div>
+
+  <div id="imgPreviewBar" class="hidden"><div class="img-bar-inner"><img id="imgPreviewThumb" src="" alt=""><span id="imgPreviewName"></span><button onclick="clearComposerImage()">×</button></div></div>
+
+  <div id="composeBox" class="widget-compose hidden">
     <button class="clip-btn" onclick="$('composeFileInput').click()" title="Adjuntar imagen">📎</button>
     <input id="composeFileInput" type="file" accept="image/*" style="display:none" onchange="queueComposerFile(this)">
-    <textarea id="freeInput" rows="1" placeholder="Escribí tu consulta..."></textarea>
+    <textarea id="freeInput" rows="1" placeholder="Escribí tu mensaje..."></textarea>
     <button class="send-btn" onclick="sendFreeMessage()">➤</button>
   </div>
 </section>
+
 <div id="toast" class="toast"></div>
 <script>
 const SUPABASE_URL = "https://pjvvyvfcwjoocjqvdror.supabase.co";
@@ -119,15 +241,18 @@ const state={
   seenMsgIds:new Set(),
   portalThreadSeen:new Set(JSON.parse(localStorage.getItem("bet300_portal_thread_seen")||"[]")),
   shownTexts:new Set(),
-  solicitudStartedAt:Number(localStorage.getItem("bet300_solicitud_started_at")||0)
+  solicitudStartedAt:Number(localStorage.getItem("bet300_solicitud_started_at")||0),
+  screen:"home", unread:0, chatGreeted:false
 };
 
 let chatPollTimer=null, estadoPollTimer=null, portalThreadTimer=null, estadoFinalNotificado=false, rechazadoStreak=0;
 
 function $(id){return document.getElementById(id)}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1)}
 function esc(t){return String(t??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
 function escMsg(t){return esc(t).replace(/\n/g,"<br>")}
 function now(){return new Date().toLocaleTimeString("es-AR",{hour:"2-digit",minute:"2-digit"})}
+function tipoLabel(){const t=state.pendingTipo||"Solicitud";return t.charAt(0)+t.slice(1).toLowerCase()}
 function tiempoEspera(){
   const started=Number(state.solicitudStartedAt||localStorage.getItem("bet300_solicitud_started_at")||0);
   if(!started)return "";
@@ -137,7 +262,7 @@ function tiempoEspera(){
   const hs=Math.round(mins/60);
   return `Hace ${hs} hora${hs>1?"s":""}`;
 }
-function toast(t){const el=$("toast");el.textContent=t;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2200)}
+function toast(t){const el=$("toast");el.textContent=t;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2400)}
 
 // ── Monitor de conexión ────────────────────────────────────────────────────
 let _connFails=0;
@@ -153,11 +278,40 @@ window.addEventListener("online",()=>{
   if(state.usuario)startPortalThreadPoll();
   if(tieneSolicitudPendiente())startEstadoPoll();
 });
-function scrollBottom(){const b=$("widgetBody");b.scrollTop=b.scrollHeight}
+
+// ── Router de pantallas ────────────────────────────────────────────────────
+const SCREENS=["home","carga","retiro","clave","estado","chat"];
+function showScreen(name){
+  state.screen=name;
+  SCREENS.forEach(s=>{const el=$("screen"+cap(s));if(el)el.classList.toggle("hidden",s!==name);});
+  $("backBtn").classList.toggle("hidden",name==="home");
+  $("composeBox").classList.toggle("hidden",name!=="chat");
+  if(name!=="chat")$("imgPreviewBar").classList.add("hidden");
+  const sc=$("screen"+cap(name));
+  if(sc&&name!=="chat")sc.scrollTop=0;
+  if(name==="chat"){state.chatLibre=true;clearUnread();setTimeout(scrollChat,30);}
+  else state.chatLibre=false;
+}
+function goHome(){renderHome();showScreen("home");}
+function goCarga(){if(bloquearNuevaSolicitud("CARGA"))return;showScreen("carga");renderCarga();}
+function goRetiro(){if(bloquearNuevaSolicitud("RETIRO"))return;showScreen("retiro");renderRetiro();}
+function goClave(){showScreen("clave");renderClave();}
+function goEstado(){showScreen("estado");renderEstado();}
+function goChat(){showScreen("chat");renderChat();}
+
+// ── No leídos ──────────────────────────────────────────────────────────────
+function updateUnreadUI(){
+  const fb=$("floatUnread"),hb=$("homeUnread");
+  [fb,hb].forEach(el=>{if(el){el.textContent=state.unread>99?"99+":state.unread;el.classList.toggle("hidden",!state.unread);}});
+}
+function bumpUnread(){state.unread++;updateUnreadUI();}
+function clearUnread(){state.unread=0;updateUnreadUI();}
+
 function toggleWidget(open){
   $("widget").classList.toggle("open",!!open);
   if(open){
-    setTimeout(scrollBottom,80);
+    renderHome();
+    showScreen(state.screen||"home");
     if(state.chatId)startChatPoll();
     if(state.usuario)startPortalThreadPoll();
     if(tieneSolicitudPendiente())startEstadoPoll();
@@ -165,13 +319,30 @@ function toggleWidget(open){
     stopChatPoll();stopPortalThreadPoll();stopEstadoPoll();
   }
 }
+
+// ── Chat (mensajes) ────────────────────────────────────────────────────────
+function scrollChat(){const m=$("messages");if(m)m.scrollTop=m.scrollHeight;}
+function scrollBottom(){scrollChat();}
 function addMsg(text,who="bot",imgUrl=null){
   const wrap=document.createElement("div");
   wrap.className="msg "+(who==="user"?"user":"bot");
   const imgHtml=imgUrl?`<img class="chat-img" src="${esc(imgUrl)}" onclick="window.open('${esc(imgUrl)}','_blank')" onerror="this.style.display='none'" alt="imagen">`:""
   wrap.innerHTML='<div class="bubble">'+String(text)+imgHtml+'</div><div class="meta">'+(who==="user"?"Vos":"BET300")+" · "+now()+'</div>';
-  $("messages").appendChild(wrap);scrollBottom();
+  $("messages").appendChild(wrap);scrollChat();
 }
+function incomingOperatorMsg(texto,imgUrl){
+  addMsg(escMsg(texto),"bot",imgUrl||null);
+  if(state.screen!=="chat"||!$("widget")?.classList.contains("open"))bumpUnread();
+}
+function renderChat(){
+  if(!state.chatGreeted&&!$("messages").children.length){
+    state.chatGreeted=true;
+    addMsg("Hola 👋 Escribinos tu consulta o mandá tu comprobante. Un operador te responde por acá.","bot");
+  }
+  setTimeout(()=>$("freeInput")?.focus(),80);
+  setTimeout(()=>subscribePush(),1200);
+}
+
 async function rpc(fn,params){if(!sb)return{data:null,error:{message:"Supabase no configurado"}};const{data,error}=await sb.rpc(fn,params||{});return{data,error}}
 function normalize(data){if(!data)return null;if(Array.isArray(data))return data[0]||null;if(data.data)return Array.isArray(data.data)?data.data[0]:data.data;return data}
 
@@ -190,8 +361,7 @@ async function pollOperatorMessages(){
     const emisor=String(m.tipo_emisor||m.emisor||"").toUpperCase();
     const isOp=emisor.includes("OPER")||emisor.includes("ADMIN")||emisor.includes("PANEL")||emisor.includes("SIST")||emisor.includes("BOT")||emisor.includes("AUTO");
     const texto=m.mensaje||m.texto||"";
-    // Convertir \n a <br> para que los saltos de línea del panel se vean correctamente
-    if(isOp&&(texto||m.imagen_url)){const tk=(texto||m.imagen_url||"").substring(0,200);if(state.shownTexts.has(tk))return;state.shownTexts.add(tk);addMsg(escMsg(texto),"bot",m.imagen_url||null);if(texto)notificarLocal("BET300 · Operador",texto.substring(0,100),"/","bet300-op");}
+    if(isOp&&(texto||m.imagen_url)){const tk=(texto||m.imagen_url||"").substring(0,200);if(state.shownTexts.has(tk))return;state.shownTexts.add(tk);incomingOperatorMsg(texto,m.imagen_url||null);if(texto)notificarLocal("BET300 · Operador",texto.substring(0,100),"/","bet300-op");}
   });
 }
 
@@ -227,80 +397,54 @@ async function pollPortalThread(){
 
     const origen=String(m.origen||"").toUpperCase();
     const texto=m.mensaje||"";
-    if(origen==="OPERADOR"&&(m.imagen_url||m.imagen))console.log("[thread-img]",{fecha:m.fecha,imagen_url:m.imagen_url,imagen:m.imagen?.substring?.(0,60)});
     // Mostramos en portal solo respuestas del panel/operador para evitar duplicar mensajes propios
     if(origen==="OPERADOR"&&(texto||m.imagen_url||m.imagen)){
       const imgUrl=m.imagen_url||m.imagen||null;
-      // Use fecha as disambiguator for image-only messages (base64 JPEGs share same first chars)
       const tk=texto?texto.substring(0,200):(m.fecha||"")+"|img|"+(imgUrl||"").substring(0,80);
       if(state.shownTexts.has(tk))return;
       state.shownTexts.add(tk);
-      addMsg(escMsg(texto),"bot",imgUrl);
+      incomingOperatorMsg(texto,imgUrl);
       if(!texto&&imgUrl)notificarLocal("BET300 · Operador","[Imagen]","/","bet300-op");
     }
   });
   savePortalThreadSeen();
 }
 
-// ── Compose ───────────────────────────────────────────────────────────────
-function setComposeEnabled(enabled,text){
-  state.chatLibre=!!enabled;
-  const box=$("composeBox"), lock=$("composeLockText");
-  if(!box)return;
-  box.classList.toggle("locked",!enabled);
-  if(lock)lock.textContent=text||"Elegí una opción para continuar.";
-  const input=$("freeInput");
-  if(input&&enabled)setTimeout(()=>input.focus(),80);
-}
+// Compatibilidad: el compose vive en la pantalla de chat
+function setComposeEnabled(enabled){state.chatLibre=!!enabled;}
 
-// ── User gate ─────────────────────────────────────────────────────────────
-function renderUserGate(){
-  const gate=$("userGate"), menu=$("mainMenu");
-  if(!gate||!menu)return;
+// ── Inicio (login / menú) ──────────────────────────────────────────────────
+function renderHome(){
+  const home=$("screenHome");
+  if(!home)return;
   if(!state.usuario){
-    gate.classList.remove("hidden","pending-mode");
-    menu.classList.add("hidden","main-menu-disabled");
-    setComposeEnabled(false,"Primero indicá tu usuario de plataforma.");
-    gate.innerHTML=`<div class="user-gate-title">Bienvenido a BET300 Asistencia 👋</div>
-      <div class="welcome-txt">Para ayudarte con cargas, retiros o soporte, indicá tu usuario de plataforma.</div>
-      <label style="margin-top:12px">Usuario de plataforma</label>
-      <input id="usuarioInicial" placeholder="Ej: usuario123" autocomplete="username">
+    home.innerHTML=`<div class="user-gate-title">Bienvenido a BET300 👋</div>
+      <div class="welcome-txt">Para cargar, retirar o pedir soporte, ingresá tu usuario de plataforma.</div>
+      <label style="margin-top:16px">Usuario de plataforma</label>
+      <input id="usuarioInicial" placeholder="Ej: usuario123" autocomplete="username" onkeydown="if(event.key==='Enter')guardarUsuarioInicial()">
       <button class="action-btn" onclick="guardarUsuarioInicial()">Continuar</button>
       <div class="flow-note">Este usuario queda recordado en este dispositivo.</div>`;
     return;
   }
-  gate.classList.remove("hidden");
-  if(tieneSolicitudPendiente()){
-    gate.classList.add("pending-mode");
-    menu.classList.add("hidden","main-menu-disabled");
-    const tipoLabel=(state.pendingTipo||"SOLICITUD").charAt(0)+String(state.pendingTipo||"SOLICITUD").slice(1).toLowerCase();
-    const espera=tiempoEspera();
-    gate.innerHTML=`<div class="user-chip">👤 ${esc(state.usuario)}</div>
-      <div class="welcome-title" style="font-size:16px;margin-top:8px">Solicitud de ${esc(tipoLabel)} en revisión</div>
-      ${espera?`<div style="font-size:11px;color:var(--muted);margin-bottom:4px">${esc(espera)}</div>`:""}
-      <div class="welcome-txt">Para evitar duplicados, no se pueden iniciar nuevas cargas ni retiros hasta que esta se cierre.</div>
-      <div class="pending-only-actions">
-        <button class="action-btn secondary-btn" onclick="verEstado()">Ver estado</button>
-        <button class="action-btn secondary-btn" onclick="enfocarChatSolicitud()">Escribir sobre esta solicitud</button>
-      </div>
-      <button class="link-btn" onclick="limpiarPendienteManual()">Marcar como resuelta en este dispositivo</button>`;
-    setComposeEnabled(true,"Podés agregar un comentario sobre tu solicitud.");
-    return;
-  }
-  gate.classList.remove("pending-mode");
-  menu.classList.remove("hidden","main-menu-disabled");
-  gate.innerHTML=`<div class="user-chip">👤 ${esc(state.usuario)}</div>
-    <div class="welcome-txt">Estás usando el centro de asistencia integrado. Elegí una opción.</div>
-    <button class="link-btn" onclick="cambiarUsuario()">¿No sos ${esc(state.usuario)}? Cambiar usuario</button>`;
-  menu.innerHTML=`<div class="welcome-title">Hola ${esc(state.usuario)} 👋</div>
-    <div class="welcome-txt">¿Qué necesitás hacer?</div>
-    <div class="quick-grid">
-      <button class="quick gold" onclick="startFlow('CARGA')">💳 Cargar saldo <small>Pedí datos y avisá tu transferencia.</small></button>
-      <button class="quick green" onclick="startFlow('RETIRO')">🏧 Solicitar retiro <small>Enviá tu solicitud para revisión.</small></button>
-      <button class="quick" onclick="startFlow('SOPORTE')">🆘 Soporte <small>Consultas, acceso o dudas.</small></button>
-      <button class="quick" onclick="verEstado()">🧾 Ver estado <small>Consultá tu última solicitud.</small></button>
+  const pend=tieneSolicitudPendiente();
+  home.innerHTML=`
+    <div class="hero">
+      <div class="user-chip">👤 ${esc(state.usuario)}</div>
+      <button class="link-btn" onclick="cambiarUsuario()">Cambiar usuario</button>
+    </div>
+    ${pend?`<div class="pending-banner" onclick="goEstado()">
+      <div><div class="pending-title">Solicitud de ${esc(tipoLabel())} en revisión</div>
+      <div class="pending-text">${esc(tiempoEspera()||"En proceso")} · tocá para ver el estado</div></div>
+      <span class="chev">›</span></div>`:""}
+    <div class="menu-title">¿Qué necesitás hacer?</div>
+    <div class="tiles">
+      <button class="tile gold" ${pend?"disabled":""} onclick="goCarga()"><span class="tile-ico">💳</span><span class="tile-tx">Cargar saldo<small>Avisá tu transferencia</small></span></button>
+      <button class="tile green" ${pend?"disabled":""} onclick="goRetiro()"><span class="tile-ico">🏧</span><span class="tile-tx">Retirar<small>Pedí tu retiro</small></span></button>
+      <button class="tile" onclick="goEstado()"><span class="tile-ico">🧾</span><span class="tile-tx">Ver estado<small>Tu solicitud</small></span></button>
+      <button class="tile" onclick="goChat()"><span class="tile-ico">💬</span><span class="tile-tx">Chat soporte<small>Hablá con un operador</small></span><span id="homeUnread" class="badge hidden">0</span></button>
+      <button class="tile wide" onclick="goClave()"><span class="tile-ico">🔑</span><span class="tile-tx">Reiniciar clave<small>Reseteá tu clave de juego</small></span></button>
     </div>`;
-  setComposeEnabled(false,"Elegí una opción para continuar.");
+  updateUnreadUI();
 }
 
 async function guardarUsuarioInicial(){
@@ -309,49 +453,45 @@ async function guardarUsuarioInicial(){
   if(!usuario)return toast("Indicá tu usuario de plataforma");
   state.usuario=usuario;
   localStorage.setItem("bet300_usuario",usuario);
-  addMsg("Usuario vinculado: "+esc(usuario),"bot");
-  renderUserGate();
+  renderHome();
   setTimeout(()=>subscribePush(),1500);
   iniciarValidacionUsuarioBackground(usuario);
   // Feedback de validación: avisar si el usuario no existe en la plataforma
   setTimeout(()=>{
     const est=localStorage.getItem("bet300_validacion_estado");
-    if(est==="NO_EXISTE"){
-      addMsg("⚠️ No encontramos ese usuario en nuestra plataforma. Verificá que sea el nombre correcto antes de realizar cargas o retiros.","bot");
-    }
+    if(est==="NO_EXISTE")toast("⚠️ No encontramos ese usuario. Verificá el nombre antes de cargar o retirar.");
   },9000);
 }
 
 function cambiarUsuario(){
   const existing=document.getElementById("cambioConfirm");
   if(existing){existing.remove();return}
-  const gate=$("userGate");
-  if(!gate)return;
-  gate.insertAdjacentHTML("beforeend",`<div id="cambioConfirm" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.28);border-radius:14px;padding:12px;margin-top:10px">
+  const home=$("screenHome");
+  if(!home)return;
+  home.insertAdjacentHTML("beforeend",`<div id="cambioConfirm" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.28);border-radius:14px;padding:12px;margin-top:14px">
     <div style="font-size:13px;color:#fca5a5;margin-bottom:10px">¿Cambiar el usuario guardado en este dispositivo?</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button class="action-btn secondary-btn" style="margin:0" onclick="document.getElementById('cambioConfirm').remove()">Cancelar</button>
       <button class="action-btn" style="margin:0;background:#ef4444;color:#fff;background-image:none" onclick="_confirmarCambioUsuario()">Cambiar</button>
     </div>
   </div>`);
-  scrollBottom();
 }
 
 function _confirmarCambioUsuario(){
-  stopChatPoll();stopEstadoPoll();
-  ["bet300_usuario","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen"].forEach(k=>localStorage.removeItem(k));
-  Object.assign(state,{usuario:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),composerImage:null});
+  stopChatPoll();stopEstadoPoll();stopPortalThreadPoll();
+  ["bet300_usuario","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
+  Object.assign(state,{usuario:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),composerImage:null,unread:0,chatGreeted:false});
   clearComposerImage();
   $("messages").innerHTML="";
-  renderUserGate();
+  goHome();
 }
 
 // ── Pendiente ─────────────────────────────────────────────────────────────
 function tieneSolicitudPendiente(){return !!(state.solicitudId||state.pendingTipo);}
 function bloquearNuevaSolicitud(tipo){
   if(!tieneSolicitudPendiente())return false;
-  addMsg(`Ya tenés una solicitud ${state.pendingTipo||""} en revisión. Esperá la confirmación o escribí sobre esa solicitud.`,"bot");
-  renderUserGate();renderPendingBox();
+  toast("Ya tenés una solicitud en revisión");
+  goEstado();
   return true;
 }
 function setPendiente(tipo,solicitudId){
@@ -366,45 +506,23 @@ function setPendiente(tipo,solicitudId){
 function limpiarPendienteManual(){
   const existing=document.getElementById("limpiarConfirm");
   if(existing){existing.remove();return}
-  const gate=$("userGate");
-  if(!gate)return;
-  gate.insertAdjacentHTML("beforeend",`<div id="limpiarConfirm" style="background:rgba(245,197,66,.08);border:1px solid rgba(245,197,66,.25);border-radius:14px;padding:12px;margin-top:10px">
+  const s=$("screenEstado");
+  if(!s)return;
+  s.insertAdjacentHTML("beforeend",`<div id="limpiarConfirm" style="background:rgba(245,197,66,.08);border:1px solid rgba(245,197,66,.25);border-radius:14px;padding:12px;margin-top:14px">
     <div style="font-size:13px;color:#ffe188;margin-bottom:10px">¿Marcar como resuelta? Hacelo solo si la solicitud ya fue procesada.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button class="action-btn secondary-btn" style="margin:0" onclick="document.getElementById('limpiarConfirm').remove()">Cancelar</button>
       <button class="action-btn" style="margin:0" onclick="_confirmarLimpiarPendiente()">Confirmar</button>
     </div>
   </div>`);
-  scrollBottom();
 }
 function _confirmarLimpiarPendiente(){
   stopChatPoll();stopEstadoPoll();
   Object.assign(state,{pendingTipo:"",solicitudId:"",chatId:"",chatToken:"",seenMsgIds:new Set()});
   ["bet300_pending_tipo","bet300_solicitud_id","bet300_chat_id","bet300_chat_token","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
-  const old=document.getElementById("pendingBox");if(old)old.remove();
-  addMsg("Estado local limpiado. Ya podés iniciar una nueva solicitud.","bot");
-  renderUserGate();
+  toast("Estado local limpiado. Ya podés iniciar una nueva solicitud.");
+  goHome();
 }
-function renderPendingBox(){
-  const id="pendingBox";
-  const old=document.getElementById(id);if(old)old.remove();
-  const box=document.createElement("div");
-  box.id=id;box.className="pending-box";
-  box.innerHTML=`<div class="pending-title">Solicitud en revisión</div>
-    <div class="pending-text">Tenés una solicitud ${esc(state.pendingTipo||"")} pendiente. Para evitar duplicados, no se puede iniciar otra carga/retiro hasta que se confirme.</div>
-    <div class="pending-actions">
-      <button class="action-btn secondary-btn" onclick="enfocarChatSolicitud()">Escribir</button>
-      <button class="action-btn secondary-btn" onclick="verEstado()">Ver estado</button>
-    </div>
-    <button class="link-btn" onclick="limpiarPendienteManual()">Marcar como resuelta en este dispositivo</button>`;
-  document.getElementById("messages").appendChild(box);scrollBottom();
-}
-function enfocarChatSolicitud(){
-  setComposeEnabled(true,"Podés agregar un comentario sobre tu solicitud.");
-  const input=document.getElementById("freeInput");
-  if(input)input.focus();scrollBottom();
-}
-function cerrarFormActivo(formId){const el=document.getElementById(formId);if(el)el.classList.add("submitted");}
 
 // ── Estado poll ───────────────────────────────────────────────────────────
 function estadoNormalizado(v){return String(v||"").trim().toUpperCase();}
@@ -430,26 +548,66 @@ function startEstadoPoll(){
   estadoPollTimer=setInterval(()=>consultarEstadoSolicitud(false),4000);
   setTimeout(()=>consultarEstadoSolicitud(false),800);
 }
+function setEstadoLive(txt){const e=$("estadoLive");if(e)e.textContent=txt;}
+
+// ── Estado (pantalla) ──────────────────────────────────────────────────────
+function renderEstado(){
+  const s=$("screenEstado");
+  if(!s)return;
+  if(tieneSolicitudPendiente()){
+    s.innerHTML=`<div class="screen-title">🧾 Estado de tu solicitud</div>
+      <div class="estado-card pending">
+        <div class="estado-ico">⏳</div>
+        <div class="estado-h">Solicitud de ${esc(tipoLabel())} en revisión</div>
+        <div class="estado-sub">${esc(tiempoEspera()||"Procesando")}</div>
+        <div class="estado-tx">Un operador la está revisando. Te avisamos acá y por el chat cuando se confirme.</div>
+        <div id="estadoLive" class="estado-live">Consultando estado…</div>
+        <div class="estado-actions">
+          <button class="action-btn" onclick="goChat()">💬 Abrir chat</button>
+          <button class="action-btn secondary-btn" onclick="verEstado()">Actualizar</button>
+        </div>
+        <button class="link-btn" onclick="limpiarPendienteManual()">Marcar como resuelta en este dispositivo</button>
+      </div>`;
+    if(solicitudIdValido())consultarEstadoSolicitud(true);
+    else setEstadoLive("Sin nº de solicitud para consultar");
+  }else{
+    s.innerHTML=`<div class="screen-title">🧾 Estado</div>
+      <div class="estado-card">
+        <div class="estado-ico">✅</div>
+        <div class="estado-h">No tenés solicitudes activas</div>
+        <div class="estado-tx">Cuando envíes una carga o un retiro, vas a poder seguir su estado acá en tiempo real.</div>
+        <div class="estado-actions">
+          <button class="action-btn" onclick="goCarga()">💳 Cargar</button>
+          <button class="action-btn secondary-btn" onclick="goHome()">Inicio</button>
+        </div>
+      </div>`;
+  }
+}
+
 function limpiarPendienteAprobado(obs){
   if(estadoFinalNotificado)return;
   estadoFinalNotificado=true;
   stopEstadoPoll();stopChatPoll();
   const tipoFinal=state.pendingTipo||"CARGA";
-  const old=document.getElementById("pendingBox");if(old)old.remove();
   state.pendingTipo="";state.solicitudId="";state.chatId="";state.chatToken="";state.seenMsgIds=new Set();state.shownTexts=new Set();
   ["bet300_pending_tipo","bet300_solicitud_id","bet300_chat_id","bet300_chat_token","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
-  const msgs=$("messages");
-  if(msgs)msgs.innerHTML="";
   const esRetiro=tipoFinal==="RETIRO";
-  const textoBase=esRetiro?"✅ ¡Tu retiro fue procesado! Revisá tu cuenta bancaria.":"✅ ¡Tu carga fue acreditada! Ya podés jugar.";
-  const textoObs=obs?`<br><span style="font-size:12px;opacity:.8">${escMsg(obs)}</span>`:"";
-  addMsg(textoBase+textoObs,"bot");
+  const titulo=esRetiro?"¡Retiro procesado!":"¡Carga acreditada!";
+  const sub=esRetiro?"Revisá tu cuenta bancaria.":"Ya podés jugar.";
+  const s=$("screenEstado");
+  if(s)s.innerHTML=`<div class="screen-title">🧾 Estado</div>
+    <div class="estado-card ok">
+      <div class="estado-ico">🎉</div>
+      <div class="estado-h">${titulo}</div>
+      <div class="estado-sub">${sub}</div>
+      ${obs?`<div class="estado-tx">${escMsg(obs)}</div>`:""}
+      <div class="estado-actions"><button class="action-btn" onclick="goHome()">Volver al inicio</button><button class="action-btn secondary-btn" onclick="goChat()">Chat</button></div>
+    </div>`;
+  renderHome();
+  if($("widget")?.classList.contains("open"))showScreen("estado");
   const notifTitulo=esRetiro?"BET300 · ¡Retiro procesado!":"BET300 · ¡Carga acreditada!";
   const notifCuerpo=obs||(esRetiro?"Tu retiro fue transferido. Revisá tu cuenta.":"¡Tus fichas ya están disponibles! Revisá tu cuenta.");
   notificarLocal(notifTitulo,notifCuerpo,"/","bet300-acreditada");
-  renderUserGate();
-  setComposeEnabled(false,"Elegí una opción para continuar.");
-  const body=$("widgetBody");if(body)body.scrollTop=0;
 }
 function esConfirmacionDemasiadoTemprana(){
   const started=Number(state.solicitudStartedAt||localStorage.getItem("bet300_solicitud_started_at")||0);
@@ -458,45 +616,51 @@ function esConfirmacionDemasiadoTemprana(){
 }
 async function consultarEstadoSolicitud(mostrarMensaje=true){
   const sid=solicitudIdValido();
-  if(!sid){if(mostrarMensaje)addMsg("No hay una solicitud válida para consultar en este dispositivo.","bot");return null;}
+  if(!sid){if(mostrarMensaje)toast("No hay una solicitud válida para consultar.");return null;}
   const chatIdNum=/^\d+$/.test(String(state.chatId||""))?Number(state.chatId):null;
   const res=await rpc("landing_estado_solicitud_segura",{
     p_solicitud_id:typeof sid==="number"?sid:0,
     p_chat_id:chatIdNum,
     p_chat_token:state.chatToken||""
   });
-  if(res.error){if(mostrarMensaje)addMsg("No pude consultar el estado ahora. Intentá en unos minutos.","bot");return null;}
+  if(res.error){if(mostrarMensaje)toast("No pude consultar el estado ahora.");return null;}
   const d=normalize(res.data)||res.data||{};
-  if(d.ok===false){if(mostrarMensaje)addMsg("Estado actual: <b>En verificación</b>","bot");return "PENDIENTE";}
+  if(d.ok===false){setEstadoLive("⏳ En verificación");return "PENDIENTE";}
   const estado=estadoNormalizado(d.estado||d.status||d.estado_solicitud);
   const obs=String(d.obs||d.observacion||d.motivo||d.razon||"").trim();
   if(esEstadoFinalAprobado(estado)){
-    if(esConfirmacionDemasiadoTemprana()){if(mostrarMensaje)addMsg("Estado actual: <b>En verificación</b>","bot");return "PENDIENTE";}
+    if(esConfirmacionDemasiadoTemprana()){setEstadoLive("⏳ En verificación");return "PENDIENTE";}
     limpiarPendienteAprobado(obs);
     return estado;
   }
   if(esEstadoFinalRechazado(estado)){
     rechazadoStreak++;
     // Confirmar con 3 polls consecutivos antes de mostrar rechazo (evita falsos positivos de estados transitorios)
-    if(rechazadoStreak < 3){
-      if(mostrarMensaje)addMsg("Estado actual: <b>En verificación</b>","bot");
-      return "PENDIENTE";
-    }
+    if(rechazadoStreak < 3){setEstadoLive("⏳ En verificación");return "PENDIENTE";}
     stopEstadoPoll();
     rechazadoStreak=0;
-    const old=document.getElementById("pendingBox");if(old)old.remove();
     state.pendingTipo="";state.solicitudId="";
     ["bet300_pending_tipo","bet300_solicitud_id","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
-    const motivoRechazo=obs?`<br><span style="font-size:12px;opacity:.8">${escMsg(obs)}</span>`:"";
-    addMsg("Tu solicitud no pudo procesarse."+motivoRechazo+`<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="action-btn" style="font-size:13px;padding:10px;margin:0;flex:1;min-width:120px" onclick="startFlow('SOPORTE')">Iniciar consulta</button><button class="action-btn secondary-btn" style="font-size:13px;padding:10px;margin:0;flex:1;min-width:120px" onclick="startFlow('CARGA')">Nueva carga</button></div>`,"bot");
-    renderUserGate();
+    const s=$("screenEstado");
+    if(s)s.innerHTML=`<div class="screen-title">🧾 Estado</div>
+      <div class="estado-card bad">
+        <div class="estado-ico">⚠️</div>
+        <div class="estado-h">Tu solicitud no pudo procesarse</div>
+        ${obs?`<div class="estado-tx">${escMsg(obs)}</div>`:`<div class="estado-tx">Escribinos por el chat y un operador te ayuda.</div>`}
+        <div class="estado-actions"><button class="action-btn" onclick="goChat()">💬 Consultar</button><button class="action-btn secondary-btn" onclick="goCarga()">Nueva carga</button></div>
+      </div>`;
+    renderHome();
+    if($("widget")?.classList.contains("open"))showScreen("estado");
     return estado;
   }
   rechazadoStreak=0; // resetear streak si el estado no es rechazo
-  if(mostrarMensaje)addMsg("Estado actual: <b>En verificación</b>","bot");
+  setEstadoLive("⏳ En verificación");
   return estado||"PENDIENTE";
 }
-async function verEstado(){await consultarEstadoSolicitud(true);}
+async function verEstado(){
+  if($("screenEstado").classList.contains("hidden"))goEstado();
+  else await consultarEstadoSolicitud(true);
+}
 
 // ── Validación usuario ────────────────────────────────────────────────────
 async function iniciarValidacionUsuarioBackground(usuario){
@@ -528,7 +692,7 @@ async function initRoute(){
   const r=await rpc("landing_resolver_ruta_publica",{p_public_code:state.publicCode});
   if(!r.error){const row=normalize(r.data);state.pcCodigo=row?.pc_codigo||row?.pc||row?.codigo_pc||null;}
   if(!state.pcCodigo){const map={"rt-a8f31":"P1","rt-k6d92":"P2","rt-m4q77":"P3","rt-z9p42":"P4","rt-x2v61":"P5"};state.pcCodigo=map[state.publicCode]||"P1";}
-  console.log("[BET300 V16.5] canal",state.pcCodigo,"ruta",state.publicCode);
+  console.log("[BET300 V17] canal",state.pcCodigo,"ruta",state.publicCode);
 }
 
 // ── Image upload (comprobantes + chat) ───────────────────────────────────
@@ -557,13 +721,12 @@ function queueComposerFile(input){
   nom.textContent=file.name;
   if(file.type.startsWith("image/")){thumb.src=URL.createObjectURL(file);thumb.style.display="";}
   else thumb.style.display="none";
-  bar.style.display="";
-  scrollBottom();
+  bar.classList.remove("hidden");
 }
 function clearComposerImage(){
   state.composerImage=null;
   const bar=$("imgPreviewBar"),thumb=$("imgPreviewThumb"),inp=$("composeFileInput");
-  if(bar)bar.style.display="none";
+  if(bar)bar.classList.add("hidden");
   if(thumb){thumb.src="";thumb.style.display="none";}
   if(inp)inp.value="";
 }
@@ -600,40 +763,35 @@ function billeteraPayloadPlano(){
   return {billetera_id:b.id||b.billetera_id||null,billetera_nombre:b.nombre_visible||b.nombre||"",billetera_titular:b.titular||"",billetera_alias:b.alias||"",billetera_cbu:b.cbu||b.cvu||"",billetera_banco:inferirTipoBilletera(b)};
 }
 
-// ── Flows ─────────────────────────────────────────────────────────────────
-function startFlow(tipo){
-  if(!state.usuario){renderUserGate();return toast("Primero indicá tu usuario");}
-  if(tipo==="CARGA"){if(bloquearNuevaSolicitud("CARGA"))return;setComposeEnabled(false,"Completá el formulario.");renderCargaForm();}
-  if(tipo==="RETIRO"){if(bloquearNuevaSolicitud("RETIRO"))return;setComposeEnabled(false,"Completá el formulario.");renderRetiroForm();}
-  if(tipo==="SOPORTE"){renderSoporteForm();}
+// ── Cargar (pantalla) ──────────────────────────────────────────────────────
+function renderCarga(){
+  const s=$("screenCarga");
+  s.innerHTML=`<div class="screen-title">💳 Cargar saldo</div>
+    <div class="user-chip" style="margin-bottom:12px">👤 ${esc(state.usuario)}</div>
+    <div id="billeteraSlot"><div class="muted-line">Obteniendo datos de billetera…</div></div>
+    <div class="form-card">
+      <label>Monto transferido</label>
+      <input id="cargaMonto" type="number" min="1" inputmode="numeric" placeholder="Ej: 5000">
+      <label>Titular que transfiere</label>
+      <input id="cargaTitular" placeholder="Ej: Maria Lopez">
+      <button id="btnEnviarCarga" class="action-btn" onclick="enviarSolicitudCargaDirecta()">Ya transferí · Enviar solicitud</button>
+      <button class="action-btn secondary-btn" style="margin-top:8px" onclick="goChat()">Necesito ayuda</button>
+    </div>`;
+  cargarBilleteraEnSlot();
 }
-
-async function renderCargaForm(){
-  $("messages").insertAdjacentHTML("beforeend",`<div id="formCargaActiva" class="form-box active-flow">
-    <div class="welcome-title" style="font-size:16px">💳 Cargar saldo</div>
-    <div id="billeteraSlot" style="margin:10px 0 4px"><div style="color:var(--muted);font-size:13px;padding:8px 0">Obteniendo datos de billetera...</div></div>
-    <div class="user-chip" style="margin-bottom:10px">👤 ${esc(state.usuario)}</div>
-    <div class="form-row">
-      <div><label>Monto transferido</label><input id="cargaMonto" type="number" min="1" placeholder="Ej: 5000"></div>
-      <div><label>Titular que transfiere</label><input id="cargaTitular" placeholder="Ej: Maria Lopez"></div>
-    </div>
-    <button id="btnEnviarCarga" class="action-btn" onclick="enviarSolicitudCargaDirecta()">Ya transferí · Enviar solicitud</button>
-    <button class="action-btn secondary-btn" style="margin-top:6px" onclick="startFlow('SOPORTE')">Necesito ayuda</button>
-  </div>`);
-  scrollBottom();
+async function cargarBilleteraEnSlot(){
   const b=await obtenerBilletera();
   const slot=$("billeteraSlot");
   if(!slot)return;
-  if(!b){slot.innerHTML=`<div style="color:var(--muted);font-size:13px;padding:8px 0">Sin billetera disponible por ahora. Consultá por soporte.</div>`;return;}
+  if(!b){slot.innerHTML=`<div class="muted-line">Sin billetera disponible por ahora. Consultá por soporte.</div>`;return;}
   const alias=b?.alias||"",cbu=b?.cbu||b?.cvu||"",titular=b?.titular||"",tipo=inferirTipoBilletera(b);
-  slot.innerHTML=`<div class="transfer-card" style="margin:0 0 10px">
-    <div class="transfer-title">Transferí a esta cuenta</div>
+  slot.innerHTML=`<div class="transfer-card">
+    <div class="transfer-title">📥 Transferí a esta cuenta</div>
     ${alias?`<div class="transfer-field"><div class="transfer-label">Alias</div><div class="transfer-value">${esc(alias)}</div><button class="copy-btn" onclick="copyText('${esc(alias)}',this)">Copiar alias</button></div>`:""}
     ${cbu?`<div class="transfer-field"><div class="transfer-label">CBU / CVU</div><div class="transfer-value">${esc(cbu)}</div><button class="copy-btn" onclick="copyText('${esc(cbu)}',this)">Copiar CBU / CVU</button></div>`:""}
     ${titular?`<div class="transfer-field"><div class="transfer-label">Titular</div><div class="transfer-value">${esc(titular)}</div></div>`:""}
     <div class="transfer-field"><div class="transfer-label">Tipo</div><div class="transfer-value">${esc(tipo)}</div></div>
   </div>`;
-  scrollBottom();
 }
 
 async function enviarSolicitudCargaDirecta(){
@@ -642,12 +800,10 @@ async function enviarSolicitudCargaDirecta(){
   if(!monto||!titular)return toast("Completá monto y titular");
   const btn=$("btnEnviarCarga");
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
-  addMsg(`Quiero cargar $${monto} · Titular: ${esc(titular)}`,"user");
-  cerrarFormActivo("formCargaActiva");
   await enviarSolicitudCarga(state.usuario,monto,titular);
 }
 
-async function copyText(t,btn){if(!t)return;await navigator.clipboard.writeText(t);btn.textContent="Copiado";setTimeout(()=>btn.textContent="Copiar",1200);}
+async function copyText(t,btn){if(!t)return;try{await navigator.clipboard.writeText(t);}catch(e){}btn.textContent="✓ Copiado";setTimeout(()=>btn.textContent=btn.dataset.lbl||"Copiar",1300);}
 
 function limpiarSolicitudAnteriorAntesDeNueva(){
   stopEstadoPoll();stopChatPoll();estadoFinalNotificado=false;
@@ -661,39 +817,40 @@ async function enviarSolicitudCarga(usuario,monto,titular){
   const payload={usuario,monto:Number(monto),titular,pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CARGA",...bp};
   const destino=bp.billetera_nombre?`${bp.billetera_nombre}${bp.billetera_alias?" · "+bp.billetera_alias:""}`:null;
   let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_destino:destino,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_metadata:payload});
-  if(res.error){console.warn("[V16.5]",res.error);res=await rpc("landing_crear_solicitud_v3_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_comprobante_url:null,p_extra:payload});}
+  if(res.error){console.warn("[V17]",res.error);res=await rpc("landing_crear_solicitud_v3_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_comprobante_url:null,p_extra:payload});}
   if(res.error){res=await rpc("landing_crear_chat_v2_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_tipo:"CARGA",p_extra:payload});}
-  if(res.error){addMsg("No pudimos enviar la solicitud automáticamente. Escribinos por acá y un operador te responde.","bot");setComposeEnabled(true,"");return;}
+  if(res.error){toast("No pudimos enviar la solicitud. Probá por el chat.");goChat();return;}
   const data=normalize(res.data)||res.data||{};
   const solicitudId=data?.solicitud_id||data?.id||data?.solicitudId||"";
   const chatId=data?.chat_id||data?.chatId||"";
   const chatToken=data?.chat_token||data?.chatToken||"";
   if(chatId){state.chatId=String(chatId);localStorage.setItem("bet300_chat_id",state.chatId);}
   if(chatToken){state.chatToken=String(chatToken);localStorage.setItem("bet300_chat_token",state.chatToken);}
-  // Guardar solicitudId siempre (numérico o UUID)
   setPendiente("CARGA",String(solicitudId||""));
-  addMsg('Solicitud recibida ✅<br><span class="status-pill">En verificación</span><br>Un operador va a revisar la transferencia. Podés escribir por este chat si necesitás.',"bot");
-  renderUserGate();renderPendingBox();
-  setComposeEnabled(true,"Podés agregar un comentario sobre tu solicitud.");
+  toast("Solicitud enviada ✅");
+  renderHome();
+  goEstado();
   startChatPoll();
   setTimeout(()=>startEstadoPoll(),8000);
-  setTimeout(()=>subscribePush(),1200); // pedir permiso push luego de confirmación carga
+  setTimeout(()=>subscribePush(),1200);
 }
 
-function renderRetiroForm(){
-  $("messages").insertAdjacentHTML("beforeend",`<div id="formRetiroActiva" class="form-box active-flow">
-    <div class="welcome-title" style="font-size:16px">🏧 Solicitud de retiro</div>
-    <div class="welcome-txt" style="margin-bottom:10px">El retiro queda sujeto a revisión de cuenta y saldo disponible.</div>
-    <div class="user-chip">👤 ${esc(state.usuario)}</div>
-    <div class="form-row">
-      <div><label>Monto</label><input id="retiroMonto" type="number" min="1" placeholder="Ej: 10000"></div>
-      <div><label>Alias/CBU destino</label><input id="retiroDestino" placeholder="Alias o CBU/CVU"></div>
-    </div>
-    <label>Titular destino</label>
-    <input id="retiroTitular" placeholder="Nombre del titular">
-    <button id="btnEnviarRetiro" class="action-btn" onclick="enviarSolicitudRetiro()">Enviar retiro a revisión</button>
-  </div>`);
-  scrollBottom();
+// ── Retiro (pantalla) ──────────────────────────────────────────────────────
+function renderRetiro(){
+  const s=$("screenRetiro");
+  s.innerHTML=`<div class="screen-title">🏧 Solicitar retiro</div>
+    <div class="user-chip" style="margin-bottom:12px">👤 ${esc(state.usuario)}</div>
+    <div class="form-card">
+      <div class="welcome-txt" style="margin-bottom:12px">El retiro queda sujeto a revisión de cuenta y saldo disponible.</div>
+      <label>Monto</label>
+      <input id="retiroMonto" type="number" min="1" inputmode="numeric" placeholder="Ej: 10000">
+      <label>Alias / CBU destino</label>
+      <input id="retiroDestino" placeholder="Alias o CBU/CVU donde cobrás">
+      <label>Titular destino</label>
+      <input id="retiroTitular" placeholder="Nombre del titular de la cuenta">
+      <button id="btnEnviarRetiro" class="action-btn" onclick="enviarSolicitudRetiro()">Enviar retiro a revisión</button>
+      <button class="action-btn secondary-btn" style="margin-top:8px" onclick="goChat()">Necesito ayuda</button>
+    </div>`;
 }
 
 async function enviarSolicitudRetiro(){
@@ -703,8 +860,6 @@ async function enviarSolicitudRetiro(){
   if(!monto||monto<=0)return toast("Ingresá un monto válido mayor a cero");
   const btn=$("btnEnviarRetiro");
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
-  addMsg("Solicito retiro de $"+monto,"user");
-  cerrarFormActivo("formRetiroActiva");
   limpiarSolicitudAnteriorAntesDeNueva();
   const msg="Solicitud de RETIRO: $"+monto+" · Destino: "+destino+" · Titular: "+titular;
   const payload={usuario,monto,destino,titular,pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"RETIRO"};
@@ -713,7 +868,7 @@ async function enviarSolicitudRetiro(){
     p_monto:monto,p_titular:titular,p_destino:destino,p_mensaje:msg,p_metadata:payload
   });
   if(res.error){
-    console.warn("[V16.5] retiro v16 falló",res.error);
+    console.warn("[V17] retiro v16 falló",res.error);
     res=await rpc("landing_crear_solicitud_v3_blindado",{
       p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"RETIRO",
       p_monto:monto,p_titular:titular,p_comprobante_url:null,p_extra:payload
@@ -725,7 +880,7 @@ async function enviarSolicitudRetiro(){
       p_mensaje:msg,p_tipo:"RETIRO",p_extra:payload
     });
   }
-  if(res.error){addMsg("No pudimos enviar el retiro automáticamente. Escribinos por acá y un operador te ayuda.","bot");setComposeEnabled(true,"Describí tu solicitud de retiro.");return;}
+  if(res.error){toast("No pudimos enviar el retiro. Probá por el chat.");goChat();return;}
   const dataR=normalize(res.data)||res.data||{};
   const solicitudId=dataR?.solicitud_id||dataR?.id||dataR?.solicitudId||"";
   const chatId=dataR?.chat_id||dataR?.chatId||"";
@@ -733,22 +888,51 @@ async function enviarSolicitudRetiro(){
   if(chatId){state.chatId=String(chatId);localStorage.setItem("bet300_chat_id",state.chatId);}
   if(chatToken){state.chatToken=String(chatToken);localStorage.setItem("bet300_chat_token",state.chatToken);}
   setPendiente("RETIRO",String(solicitudId||"pendiente-local-"+Date.now()));
-  addMsg('Retiro recibido 🕓<br><span class="status-pill">En revisión</span><br>El equipo verificará tu saldo. Podés escribir por acá.',"bot");
-  renderUserGate();renderPendingBox();
-  setComposeEnabled(true,"Podés agregar un comentario sobre tu solicitud.");
+  toast("Retiro enviado a revisión 🕓");
+  renderHome();
+  goEstado();
   startChatPoll();
   setTimeout(()=>startEstadoPoll(),8000);
-  setTimeout(()=>subscribePush(),1200); // pedir permiso push luego de confirmación retiro
+  setTimeout(()=>subscribePush(),1200);
 }
 
-function renderSoporteForm(){
-  addMsg("Escribí tu consulta en la barra de abajo y un operador te responde por este mismo chat.","bot");
-  setComposeEnabled(true,"");
-  setTimeout(()=>$("freeInput")?.focus(),80);
-  setTimeout(()=>subscribePush(),1500);
+// ── Reset de clave (pantalla) — tipo CAMBIO_CLAVE ──────────────────────────
+function renderClave(){
+  const s=$("screenClave");
+  s.innerHTML=`<div class="screen-title">🔑 Reiniciar clave</div>
+    <div class="user-chip" style="margin-bottom:12px">👤 ${esc(state.usuario)}</div>
+    <div class="form-card">
+      <div class="welcome-txt" style="margin-bottom:12px">Pedí el reseteo de tu clave de juego. Si dejás el campo vacío, se resetea a la clave por defecto <b>12345a</b>.</div>
+      <label>Nueva clave (opcional)</label>
+      <input id="claveNueva" placeholder="Mínimo 6 caracteres · letras y números">
+      <button id="btnEnviarClave" class="action-btn" onclick="enviarSolicitudClave()">Solicitar reseteo de clave</button>
+      <button class="action-btn secondary-btn" style="margin-top:8px" onclick="goChat()">Necesito ayuda</button>
+    </div>`;
 }
 
-// ── Mensajería libre ──────────────────────────────────────────────────────
+async function enviarSolicitudClave(){
+  const claveRaw=($("claveNueva")?.value||"").trim();
+  const clave=claveRaw||"12345a";
+  if(clave.length<6)return toast("La clave debe tener al menos 6 caracteres");
+  if(!/^[a-zA-Z0-9]+$/.test(clave))return toast("Solo letras y números, sin espacios ni símbolos");
+  const btn=$("btnEnviarClave");
+  if(btn){btn.disabled=true;btn.textContent="Enviando...";}
+  // No bloquea carga/retiro: el cambio de clave es independiente y se manda como una solicitud más.
+  const payload={usuario:state.usuario,pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CAMBIO_CLAVE",password_nuevo:clave};
+  let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:state.usuario,p_tipo:"CAMBIO_CLAVE",p_monto:0,p_titular:"",p_destino:null,p_mensaje:"Solicitud de CAMBIO_CLAVE",p_metadata:payload});
+  if(res.error){console.warn("[V17] clave v16 falló",res.error);res=await rpc("landing_crear_chat_v2_blindado",{p_public_code:state.publicCode,p_usuario:state.usuario,p_mensaje:"Solicitud de CAMBIO DE CLAVE",p_tipo:"CAMBIO_CLAVE",p_extra:payload});}
+  if(res.error){toast("No pudimos enviar la solicitud. Probá por el chat.");goChat();return;}
+  const d=normalize(res.data)||res.data||{};
+  if(d.chat_id){state.chatId=String(d.chat_id);localStorage.setItem("bet300_chat_id",state.chatId);}
+  if(d.chat_token){state.chatToken=String(d.chat_token);localStorage.setItem("bet300_chat_token",state.chatToken);}
+  toast("Solicitud de cambio de clave enviada 🔑");
+  goChat();
+  addMsg('Solicitud de cambio de clave enviada 🔑<br><span class="status-pill">En proceso</span><br>Un operador la procesará en breve. Te avisamos por este mismo chat.',"bot");
+  startChatPoll();startPortalThreadPoll();
+  setTimeout(()=>subscribePush(),1200);
+}
+
+// ── Mensajería libre (chat) ────────────────────────────────────────────────
 async function enviarMensajeSoporte(txt,imagenUrl=null){
   const mensaje=String(txt||"").trim();
   if(!mensaje&&!imagenUrl)return;
@@ -782,13 +966,12 @@ async function enviarMensajeSoporte(txt,imagenUrl=null){
 }
 
 async function sendFreeMessage(){
-  if(!state.chatLibre)return toast("Elegí una opción para continuar");
   const input=$("freeInput"),txt=input.value.trim();
   const hasImg=!!state.composerImage;
   if(!txt&&!hasImg)return;
+  if(!state.usuario){toast("Primero indicá tu usuario");goHome();return;}
   input.value="";
   if(txt)addMsg(esc(txt),"user");
-  if(!state.usuario){addMsg("Para ayudarte mejor, indicá tu usuario de plataforma o elegí una opción del menú.","bot");return;}
   let imgUrl=null;
   if(hasImg){
     const file=state.composerImage;
@@ -835,7 +1018,6 @@ async function notificarLocal(title,body,url,tag){
   }catch(e){}
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────
 // ── Page Visibility: pausar polls cuando el tab no es visible ─────────────
 document.addEventListener("visibilitychange",()=>{
   if(document.hidden){
@@ -856,9 +1038,7 @@ function chequearPendienteViejo(){
   if(!started)return;
   const hs=(Date.now()-started)/3600000;
   if(hs<24)return;
-  setTimeout(()=>{
-    addMsg(`⚠️ Tu solicitud lleva más de ${Math.round(hs)} horas pendiente. Si ya fue procesada o hubo un problema, podés limpiarla manualmente desde "Marcar como resuelta".`,"bot");
-  },3000);
+  setTimeout(()=>toast(`Tu solicitud lleva +${Math.round(hs)}h. Si ya fue procesada, marcala como resuelta en Estado.`),3000);
 }
 
 // ── Enter para enviar (Shift+Enter = nueva línea) ────────────────────────
@@ -869,7 +1049,7 @@ document.addEventListener("keydown",e=>{
 
 // ── Paste de imagen en el chat (Ctrl+V) ──────────────────────────────────
 document.addEventListener("paste",e=>{
-  if(!state.chatLibre)return;
+  if(state.screen!=="chat")return;
   const items=[...(e.clipboardData?.items||[])];
   const imgItem=items.find(it=>it.type.startsWith("image/"));
   if(!imgItem)return;
@@ -882,24 +1062,22 @@ document.addEventListener("paste",e=>{
   nom.textContent="Imagen pegada del portapapeles";
   thumb.src=URL.createObjectURL(file);
   thumb.style.display="";
-  bar.style.display="";
-  scrollBottom();
+  bar.classList.remove("hidden");
 });
 
+// ── Init ──────────────────────────────────────────────────────────────────
 window.addEventListener("load",async()=>{
   if("serviceWorker" in navigator){
     navigator.serviceWorker.register("/sw.js").catch(e=>console.warn("[SW]",e));
   }
   $("appFrame").src=PLATFORM_URL;
   await initRoute();
-  renderUserGate();
+  renderHome();
+  showScreen("home");
   if(tieneSolicitudPendiente()){
-    renderPendingBox();
     startEstadoPoll();
     chequearPendienteViejo();
   }
-  if(state.chatId&&$("widget")?.classList.contains("open"))startChatPoll();
-  if(state.usuario&&$("widget")?.classList.contains("open"))startPortalThreadPoll();
 });
 </script>
 </body>
