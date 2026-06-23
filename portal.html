@@ -742,7 +742,7 @@ async function enviarMensajeSoporte(txt,imagenUrl=null){
     res=await rpc("landing_portal_v16_crear_solicitud",{
       p_public_code:state.publicCode,p_usuario:state.usuario,
       p_tipo:"SOPORTE",p_monto:0,p_titular:"",p_destino:null,
-      p_mensaje:mensaje||(imagenUrl?"[imagen adjunta]":""),p_metadata:payload
+      p_mensaje:mensaje||(imagenUrl?"📎 Imagen adjunta":""),p_metadata:payload
     });
     if(!res.error){
       const d=normalize(res.data)||res.data||{};
@@ -769,7 +769,7 @@ async function sendFreeMessage(){
     const file=state.composerImage;
     clearComposerImage();
     imgUrl=await subirImagen(file);
-    if(imgUrl)addMsg("","user",imgUrl);
+    if(imgUrl)addMsg("📎 Imagen adjunta","user",imgUrl);
   }
   await enviarMensajeSoporte(txt||"",imgUrl);
 }
@@ -835,6 +835,12 @@ function chequearPendienteViejo(){
     addMsg(`⚠️ Tu solicitud lleva más de ${Math.round(hs)} horas pendiente. Si ya fue procesada o hubo un problema, podés limpiarla manualmente desde "Marcar como resuelta".`,"bot");
   },3000);
 }
+
+// ── Enter para enviar (Shift+Enter = nueva línea) ────────────────────────
+document.addEventListener("keydown",e=>{
+  if(e.target.id!=="freeInput")return;
+  if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendFreeMessage();}
+});
 
 // ── Paste de imagen en el chat (Ctrl+V) ──────────────────────────────────
 document.addEventListener("paste",e=>{
