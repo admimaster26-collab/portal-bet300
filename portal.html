@@ -3,204 +3,264 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
-<meta name="theme-color" content="#0a0a12">
+<meta name="theme-color" content="#0a0a0c">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BET300">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
-<title>BET300 · Portal V17</title>
+<title>BET300 · Cajero V18</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ════════════════════════════════════════════════════════════════════════
-   BET300 · Portal V17 — Navegación por PANTALLAS (no chat-stream)
-   El backend (RPC) NO cambió. Cada acción abre su propia vista estable;
-   el chat es la única pantalla con feed. Adiós scroll-jump al tocar botones.
+   BET300 · Cajero V18 — "Oscuro premium pulido"
+   • Panel a PANTALLA COMPLETA (sin gestos, sin deslizar).
+   • BARRA INFERIOR FIJA: las 5 acciones siempre visibles en toda pantalla.
+   • Estilo nuevo: grafito sólido, dorado sobrio, bordes definidos, tipo grande.
+   • Backend INTACTO: mismas RPC, mismas claves de localStorage, mismo polling.
    ════════════════════════════════════════════════════════════════════════ */
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
-  --bg:#08080f; --surface:#13131f; --surface-2:#1b1b2b;
-  --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
-  --text:#f4f5fb; --muted:#9298ad;
-  --gold:#f5c542; --gold-2:#ffd980; --green:#26d07c; --blue:#5b78ff; --danger:#ff5468;
-  --r:20px; --r-sm:14px; --shadow:0 26px 80px rgba(0,0,0,.55);
+  --bg:#08080a; --panel:#0e0e12; --surface:#16161c; --surface-2:#1e1e26;
+  --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.13);
+  --text:#f4f4f7; --muted:#8b8b97; --muted-2:#6a6a76;
+  --gold:#e9c25c; --gold-2:#f3d588; --gold-deep:#c79f33;
+  --green:#3ad07f; --green-soft:rgba(58,208,127,.14);
+  --blue:#5b78ff; --danger:#ff5468;
+  --r:16px; --r-sm:12px;
+  --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
   --font:'Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
 }
 html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font)}
 button,input,textarea{font-family:var(--font)}
-::selection{background:rgba(245,197,66,.3)}
+::selection{background:rgba(233,194,92,.28)}
 .hidden{display:none!important}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 #appFrame{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:var(--bg);z-index:1}
 
-/* ── Botón flotante ────────────────────────────────────────────────────── */
-.float-btn{position:fixed;right:20px;bottom:20px;z-index:20;border:none;cursor:pointer;display:flex;align-items:center;gap:11px;
-  padding:0 20px 0 14px;height:58px;border-radius:999px;background:linear-gradient(135deg,#ffdf7e,var(--gold) 55%,#e9a700);
-  color:#231900;font-weight:800;font-size:15px;box-shadow:0 14px 34px rgba(245,197,66,.42),0 10px 40px rgba(0,0,0,.5);transition:transform .18s}
-.float-btn:hover{transform:translateY(-2px)}.float-btn:active{transform:scale(.96)}
-.float-btn .fb-ico{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.16);font-size:18px}
-.float-btn .fb-sub{display:block;font-size:10px;font-weight:700;opacity:.7;letter-spacing:.3px;text-transform:uppercase;margin-top:-1px}
-.float-badge{position:absolute;top:-4px;right:-2px;min-width:22px;height:22px;border-radius:999px;background:var(--danger);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid var(--bg)}
+/* ── Launcher (FAB premium) ─────────────────────────────────────────────── */
+.launcher{position:fixed;right:18px;bottom:calc(78px + var(--safe-b));z-index:20;border:1px solid var(--gold-deep);cursor:pointer;
+  display:flex;align-items:center;gap:11px;padding:0 18px 0 13px;height:54px;border-radius:14px;
+  background:#121216;color:var(--gold-2);font-weight:800;font-size:14.5px;
+  box-shadow:0 10px 28px rgba(0,0,0,.55);transition:transform .16s,border-color .16s}
+.launcher:hover{transform:translateY(-2px);border-color:var(--gold)}.launcher:active{transform:scale(.97)}
+.launcher .fb-ico{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;background:rgba(233,194,92,.14);border:1px solid rgba(233,194,92,.3);font-size:17px}
+.launcher .fb-sub{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.3px;text-transform:uppercase;margin-top:0}
+.launcher .float-badge{position:absolute;top:-6px;right:-6px;min-width:22px;height:22px;border-radius:999px;background:var(--danger);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid var(--bg)}
 
-/* ── Widget ────────────────────────────────────────────────────────────── */
-.widget{position:fixed;right:20px;bottom:90px;z-index:30;width:404px;max-width:calc(100vw - 28px);height:640px;max-height:calc(100vh - 116px);
-  background:linear-gradient(180deg,#15151f,#0c0c15);border:1px solid var(--line-2);border-radius:24px;box-shadow:var(--shadow);
-  overflow:hidden;display:none;flex-direction:column}
-.widget.open{display:flex;animation:popIn .26s cubic-bezier(.2,.9,.25,1)}
-@keyframes popIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+/* ── Scrim (solo desktop) ───────────────────────────────────────────────── */
+.scrim{position:fixed;inset:0;z-index:25;background:rgba(3,3,6,.6);opacity:0;pointer-events:none;transition:opacity .26s}
+.scrim.show{opacity:1;pointer-events:auto}
 
-.widget-head{position:relative;flex-shrink:0;padding:14px 14px;display:flex;align-items:center;gap:11px;
-  background:radial-gradient(140% 120% at 90% -20%,rgba(245,197,66,.20),transparent 50%),linear-gradient(135deg,#1b1c2c,#101019);border-bottom:1px solid var(--line)}
-.head-avatar{width:40px;height:40px;border-radius:13px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(135deg,var(--gold),#e6a400);color:#221900;font-weight:900;font-size:12px;box-shadow:0 6px 16px rgba(245,197,66,.3)}
+/* ── Panel a pantalla completa ──────────────────────────────────────────── */
+.panel{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;background:var(--panel);
+  transform:translateY(100%);visibility:hidden;transition:transform .3s cubic-bezier(.22,.9,.28,1),visibility 0s linear .3s}
+.panel.open{transform:none;visibility:visible;transition:transform .32s cubic-bezier(.22,.9,.28,1)}
+
+/* Header */
+.panel-head{flex-shrink:0;display:flex;align-items:center;gap:12px;
+  padding:calc(13px + var(--safe-t)) 14px 13px;border-bottom:1px solid var(--line);background:#0c0c10}
+.head-avatar{width:42px;height:42px;border-radius:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  background:#15151a;border:1px solid var(--gold-deep);color:var(--gold-2);font-weight:900;font-size:12px;letter-spacing:.5px}
 .head-info{flex:1;min-width:0}
-.brand-logo{font-size:16px;font-weight:900;letter-spacing:-.3px;line-height:1.1}.brand-logo span:first-child{color:var(--gold)}
-.head-sub{font-size:11px;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px}
-.head-sub .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(38,208,124,.18)}
-.icon-btn{border:none;background:rgba(255,255,255,.07);color:#d3d6e2;border-radius:11px;width:36px;height:36px;cursor:pointer;font-size:19px;line-height:1;transition:background .15s;flex-shrink:0}
-.icon-btn:hover{background:rgba(255,255,255,.14)}
+.brand-logo{font-size:16.5px;font-weight:900;letter-spacing:-.2px;line-height:1.1}.brand-logo span:first-child{color:var(--gold-2)}
+.head-sub{font-size:11.5px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px}
+.head-sub .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(58,208,127,.16)}
+.icon-btn{border:1px solid var(--line);background:#15151a;color:#cfcfd8;border-radius:10px;width:40px;height:40px;cursor:pointer;font-size:20px;line-height:1;transition:background .15s,transform .12s;flex-shrink:0}
+.icon-btn:hover{background:#20202a}.icon-btn:active{transform:scale(.92)}
 
-#connBanner{background:linear-gradient(90deg,#3a0d12,#4a1118);color:#ffb3bd;font-size:12px;font-weight:700;padding:8px 14px;align-items:center;gap:8px;border-bottom:1px solid rgba(255,84,104,.25);flex-shrink:0}
+#connBanner{background:#2a0d11;color:#ffb3bd;font-size:12px;font-weight:700;padding:9px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,84,104,.25);flex-shrink:0}
 
-/* ── Contenedor de pantallas ───────────────────────────────────────────── */
-.widget-main{flex:1;position:relative;overflow:hidden}
-.screen{position:absolute;inset:0;overflow-y:auto;padding:16px;
-  background:radial-gradient(120% 70% at 12% 0%,rgba(91,120,255,.08),transparent 38%),radial-gradient(120% 70% at 100% 20%,rgba(245,197,66,.06),transparent 40%),var(--bg)}
-.screen::-webkit-scrollbar{width:8px}.screen::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:8px}
+/* Cuerpo (pantallas) */
+.panel-body{flex:1;position:relative;overflow:hidden}
+.screen{position:absolute;inset:0;overflow-y:auto;padding:18px;padding-bottom:24px;background:var(--panel)}
+.screen::-webkit-scrollbar{width:8px}.screen::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px}
+.screen.in{animation:fadeIn .22s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 #screenChat{padding:0;display:flex;flex-direction:column}
-.screen-title{font-size:18px;font-weight:900;letter-spacing:-.3px;margin-bottom:14px}
+.screen-title{font-size:21px;font-weight:900;letter-spacing:-.4px;margin-bottom:6px}
+.screen-desc{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:16px}
 
-/* ── Inicio ────────────────────────────────────────────────────────────── */
-.hero{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
-.user-chip{display:inline-flex;align-items:center;gap:7px;background:rgba(245,197,66,.13);border:1px solid rgba(245,197,66,.3);color:var(--gold-2);border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:800}
-.link-btn{border:none;background:transparent;color:var(--gold-2);font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0}
-.link-btn:hover{color:var(--gold)}
-.menu-title{font-size:13px;color:var(--muted);font-weight:700;margin:6px 2px 10px}
-.user-gate-title{font-weight:900;font-size:20px;margin-bottom:8px;letter-spacing:-.3px}
-.welcome-txt{font-size:13.5px;color:#cfd3e2;line-height:1.5}
-.flow-note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}
+/* ── BARRA INFERIOR FIJA (siempre visible) ──────────────────────────────── */
+.panel-nav{flex-shrink:0;display:flex;background:#0a0a0d;border-top:1px solid var(--line-2);padding-bottom:var(--safe-b)}
+.nav-item{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:11px 2px 9px;border:none;background:none;color:var(--muted-2);font-size:11px;font-weight:800;cursor:pointer;transition:color .15s}
+.nav-item .n-ico{font-size:21px;line-height:1;filter:grayscale(.4);opacity:.85;transition:.15s}
+.nav-item:hover{color:var(--muted)}
+.nav-item.active{color:var(--gold-2)}
+.nav-item.active .n-ico{filter:none;opacity:1;transform:translateY(-1px)}
+.nav-item.active::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:30px;height:3px;border-radius:0 0 4px 4px;background:var(--gold)}
+.nav-item .badge{position:absolute;top:5px;right:calc(50% - 22px);min-width:18px;height:18px;border-radius:999px;background:var(--danger);color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid #0a0a0d}
 
-.tiles{display:grid;grid-template-columns:1fr 1fr;gap:11px}
-.tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;cursor:pointer;
-  border:1px solid var(--line-2);background:linear-gradient(170deg,#1e1e30,#161623);color:var(--text);border-radius:18px;padding:15px 14px;min-height:104px;
-  transition:transform .16s,border-color .16s,box-shadow .16s}
-.tile:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(0,0,0,.32)}
-.tile:active{transform:translateY(-1px) scale(.99)}
-.tile:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
-.tile-ico{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:21px;background:rgba(255,255,255,.06);border:1px solid var(--line)}
-.tile-tx{font-weight:800;font-size:14.5px;line-height:1.2}.tile-tx small{display:block;color:var(--muted);font-size:11.5px;font-weight:600;margin-top:4px;line-height:1.3}
-.tile.gold .tile-ico{background:rgba(245,197,66,.16);border-color:rgba(245,197,66,.4)}
-.tile.green .tile-ico{background:rgba(38,208,124,.16);border-color:rgba(38,208,124,.36)}
-.tile.wide{grid-column:1/-1;flex-direction:row;align-items:center;min-height:auto}
-.tile .badge{position:absolute;top:11px;right:11px;min-width:20px;height:20px;border-radius:999px;background:var(--danger);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 5px}
+/* ── Inicio: login ──────────────────────────────────────────────────────── */
+.gate-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(233,194,92,.1);border:1px solid rgba(233,194,92,.28);color:var(--gold-2);border-radius:999px;padding:7px 13px;font-size:12px;font-weight:800;margin-bottom:16px}
+.gate-title{font-weight:900;font-size:24px;letter-spacing:-.5px;margin-bottom:10px}
+.gate-txt{font-size:14px;color:#c9c9d2;line-height:1.55;margin-bottom:18px}
+.trust-row{display:flex;gap:8px;margin-top:18px;flex-wrap:wrap}
+.trust{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#b3b3bf;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 11px}
+.flow-note{font-size:12px;color:var(--muted);line-height:1.5;margin-top:14px}
 
-.pending-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;
-  background:linear-gradient(180deg,rgba(245,197,66,.12),rgba(245,197,66,.04));border:1px solid rgba(245,197,66,.32);border-radius:16px;padding:14px;margin-bottom:14px}
-.pending-banner .chev{font-size:24px;color:var(--gold-2);line-height:1}
-.pending-title{font-weight:900;color:var(--gold-2);font-size:14.5px}
-.pending-text{font-size:12.5px;color:#cfd3e2;margin-top:3px;line-height:1.4}
+/* ── Inicio: dashboard ──────────────────────────────────────────────────── */
+.greet{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
+.greet-hi{font-size:13px;color:var(--muted);font-weight:700}
+.greet-user{font-size:20px;font-weight:900;letter-spacing:-.3px;margin-top:3px;display:flex;align-items:center;gap:8px}
+.link-btn{border:1px solid var(--line);background:var(--surface);color:var(--gold-2);font-size:12.5px;font-weight:800;cursor:pointer;padding:8px 12px;border-radius:10px;transition:.15s}
+.link-btn:hover{background:#20202a}
+.section-label{font-size:12px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin:6px 2px 11px}
 
-/* ── Formularios (vista fija) ──────────────────────────────────────────── */
-.form-card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
-label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#aab0c4;font-weight:800;margin-bottom:6px}
-input,textarea{width:100%;border:1px solid var(--line-2);background:#0e0e19;color:var(--text);border-radius:var(--r-sm);padding:13px 14px;font-size:15px;margin-bottom:12px;transition:border-color .15s,box-shadow .15s}
-input::placeholder,textarea::placeholder{color:#5a607a}
-input:focus,textarea:focus{outline:none;border-color:rgba(245,197,66,.65);box-shadow:0 0 0 3px rgba(245,197,66,.16)}
+.big-btn{width:100%;display:flex;align-items:center;gap:14px;text-align:left;cursor:pointer;
+  border:1px solid var(--line-2);background:var(--surface);color:var(--text);border-radius:var(--r);padding:17px 15px;margin-bottom:12px;
+  transition:transform .14s,border-color .14s,background .14s}
+.big-btn:hover{background:#1b1b22;border-color:var(--line-2)}.big-btn:active{transform:scale(.99)}
+.big-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.big-btn.gold{border-color:rgba(233,194,92,.4);background:linear-gradient(180deg,#1a160e,#15151a)}
+.big-btn.gold .bb-ico{background:rgba(233,194,92,.16);border-color:rgba(233,194,92,.45);color:var(--gold-2)}
+.big-btn.green{border-color:rgba(58,208,127,.35)}
+.big-btn.green .bb-ico{background:var(--green-soft);border-color:rgba(58,208,127,.4);color:var(--green)}
+.bb-ico{width:50px;height:50px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:25px;background:rgba(255,255,255,.05);border:1px solid var(--line);flex-shrink:0}
+.bb-tx{flex:1;min-width:0;font-weight:800;font-size:16.5px}.bb-tx small{display:block;color:var(--muted);font-weight:600;font-size:12.5px;margin-top:3px;line-height:1.35}
+.bb-arrow{color:var(--muted-2);font-size:24px;flex-shrink:0}
+
+.row-btn{width:100%;display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:var(--r);padding:15px;font-weight:800;font-size:14.5px;cursor:pointer;transition:.14s}
+.row-btn:hover{background:#1b1b22}.row-btn .rb-ico{font-size:19px}.row-btn .rb-arrow{margin-left:auto;color:var(--muted-2);font-size:22px}
+
+.pending-banner{display:flex;align-items:center;gap:12px;cursor:pointer;
+  background:#1a160e;border:1px solid rgba(233,194,92,.4);border-radius:var(--r);padding:15px;margin-bottom:16px}
+.pending-banner .pb-ico{width:42px;height:42px;border-radius:11px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;background:rgba(233,194,92,.14);border:1px solid rgba(233,194,92,.35)}
+.pending-title{font-weight:900;color:var(--gold-2);font-size:14.5px;display:flex;align-items:center;gap:7px}
+.pending-text{font-size:12.5px;color:#cfcfd8;margin-top:3px;line-height:1.4}
+.pending-banner .chev{margin-left:auto;font-size:24px;color:var(--gold-2)}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--gold);animation:pulse 1.5s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(233,194,92,.5)}70%{box-shadow:0 0 0 7px rgba(233,194,92,0)}100%{box-shadow:0 0 0 0 rgba(233,194,92,0)}}
+
+/* ── Formularios ────────────────────────────────────────────────────────── */
+.user-chip{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line-2);color:var(--gold-2);border-radius:10px;padding:8px 13px;font-size:13px;font-weight:800;margin-bottom:14px}
+.form-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#a3a3b0;font-weight:800;margin-bottom:7px}
+input,textarea{width:100%;border:1px solid var(--line-2);background:#0c0c11;color:var(--text);border-radius:var(--r-sm);padding:14px;font-size:16px;margin-bottom:12px;transition:border-color .15s,box-shadow .15s}
+input::placeholder,textarea::placeholder{color:#56565f}
+input:focus,textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(233,194,92,.14)}
 textarea{resize:vertical;min-height:76px}
-.muted-line{color:var(--muted);font-size:13px;padding:6px 0}
+.muted-line{color:var(--muted);font-size:13px;padding:8px 0}
+.welcome-txt{font-size:13.5px;color:#c9c9d2;line-height:1.55}
 
-.action-btn{width:100%;border:none;border-radius:var(--r-sm);padding:14px;font-weight:900;font-size:14.5px;cursor:pointer;margin-top:2px;
-  background:linear-gradient(135deg,#ffdf7e,var(--gold) 60%,#eaa800);color:#241a00;box-shadow:0 10px 24px rgba(245,197,66,.26);transition:transform .15s,box-shadow .15s,filter .15s}
-.action-btn:hover{filter:brightness(1.04)}.action-btn:active{transform:scale(.985)}.action-btn:disabled{opacity:.6;cursor:default;box-shadow:none}
-.secondary-btn{background:#23233a;color:var(--text);border:1px solid var(--line-2);box-shadow:none}.secondary-btn:hover{filter:none;background:#2b2b46}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:-2px 0 14px}
+.chip{border:1px solid var(--line-2);background:#101015;color:#e2e2ea;border-radius:10px;padding:10px 14px;font-size:13.5px;font-weight:800;cursor:pointer;transition:.14s}
+.chip:hover{border-color:var(--gold-deep);color:var(--gold-2)}.chip:active{transform:scale(.96)}
+.chip.on{background:rgba(233,194,92,.14);border-color:var(--gold);color:var(--gold-2)}
 
-/* ── Tarjeta de transferencia ──────────────────────────────────────────── */
-.transfer-card{background:linear-gradient(180deg,#211f12,#14121c);border:1px solid rgba(245,197,66,.45);border-radius:18px;padding:15px;margin-bottom:14px;box-shadow:0 14px 30px rgba(0,0,0,.3)}
-.transfer-title{font-weight:900;color:var(--gold);font-size:15px;margin-bottom:12px}
-.transfer-field{background:#0c0c16;border-radius:13px;padding:11px 12px;margin-bottom:9px;border:1px solid var(--line)}
-.transfer-label{font-size:10px;color:#9aa0b4;text-transform:uppercase;font-weight:800;letter-spacing:.5px;margin-bottom:5px}
-.transfer-value{font-size:15px;font-weight:800;color:#fff;word-break:break-all;margin-bottom:9px}
-.copy-btn{border:none;border-radius:11px;background:#26263e;color:#fff;padding:10px;font-size:12.5px;font-weight:800;cursor:pointer;width:100%;transition:background .15s}
-.copy-btn:hover{background:#32324f}.copy-btn:active{background:var(--blue)}
+.action-btn{width:100%;border:1px solid var(--gold-deep);border-radius:var(--r-sm);padding:16px;font-weight:900;font-size:15.5px;cursor:pointer;margin-top:2px;
+  background:var(--gold);color:#1a1500;transition:transform .14s,filter .14s,background .14s}
+.action-btn:hover{filter:brightness(1.05)}.action-btn:active{transform:scale(.985)}.action-btn:disabled{opacity:.55;cursor:default}
+.secondary-btn{background:var(--surface);color:var(--text);border:1px solid var(--line-2)}.secondary-btn:hover{background:#20202a;filter:none}
 
-/* ── Estado ────────────────────────────────────────────────────────────── */
-.estado-card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:var(--r);padding:22px 18px;text-align:center}
-.estado-card.pending{border-color:rgba(245,197,66,.32);background:linear-gradient(180deg,rgba(245,197,66,.1),rgba(245,197,66,.03))}
-.estado-card.ok{border-color:rgba(38,208,124,.4);background:linear-gradient(180deg,rgba(38,208,124,.12),rgba(38,208,124,.03))}
-.estado-card.bad{border-color:rgba(255,84,104,.4);background:linear-gradient(180deg,rgba(255,84,104,.1),rgba(255,84,104,.03))}
-.estado-ico{font-size:40px;margin-bottom:10px}
-.estado-h{font-weight:900;font-size:18px;margin-bottom:6px}
-.estado-sub{font-size:12.5px;color:var(--muted);margin-bottom:10px}
-.estado-tx{font-size:13px;color:#cfd3e2;line-height:1.5;margin-bottom:14px}
-.estado-live{font-size:12px;font-weight:800;color:var(--gold-2);background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.25);border-radius:999px;padding:7px 12px;display:inline-block;margin-bottom:16px}
-.estado-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px}
+/* ── Transferencia ──────────────────────────────────────────────────────── */
+.transfer-card{background:var(--surface);border:1px solid rgba(233,194,92,.4);border-radius:var(--r);padding:15px;margin-bottom:14px}
+.transfer-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
+.transfer-title{font-weight:900;color:var(--gold-2);font-size:15.5px}
+.share-btn{border:1px solid rgba(233,194,92,.4);background:rgba(233,194,92,.1);color:var(--gold-2);border-radius:10px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;transition:.14s}
+.share-btn:hover{background:rgba(233,194,92,.18)}.share-btn:active{transform:scale(.95)}
+.transfer-field{background:#0c0c11;border-radius:12px;padding:12px;margin-bottom:9px;border:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.transfer-field .tf-main{flex:1;min-width:0}
+.transfer-label{font-size:10px;color:#8b8b97;text-transform:uppercase;font-weight:800;letter-spacing:.5px;margin-bottom:4px}
+.transfer-value{font-size:15.5px;font-weight:800;color:#fff;word-break:break-all}
+.copy-btn{flex-shrink:0;border:1px solid var(--line-2);border-radius:10px;background:#20202a;color:#fff;padding:11px 13px;font-size:12.5px;font-weight:800;cursor:pointer;transition:.14s}
+.copy-btn:hover{background:#2a2a36}.copy-btn.done{background:var(--green);border-color:var(--green);color:#04210f}.copy-btn:active{transform:scale(.94)}
+.transfer-hint{font-size:12.5px;color:#cdb878;line-height:1.5;margin-top:8px;display:flex;gap:7px}
+
+/* Skeleton */
+.sk{position:relative;overflow:hidden;background:rgba(255,255,255,.05);border-radius:10px}
+.sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);animation:shimmer 1.3s infinite}
+@keyframes shimmer{100%{transform:translateX(100%)}}
+.sk-card{border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.sk-line{height:14px;margin-bottom:11px}.sk-line.lg{height:36px}.sk-line.w60{width:60%}.sk-line.w40{width:40%}.sk-line.w80{width:80%}
+
+/* ── Estado ─────────────────────────────────────────────────────────────── */
+.estado-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:24px 18px;text-align:center}
+.estado-card.pending{border-color:rgba(233,194,92,.4)}
+.estado-card.ok{border-color:rgba(58,208,127,.45)}
+.estado-card.bad{border-color:rgba(255,84,104,.42)}
+.estado-ico{font-size:44px;margin-bottom:12px}
+.estado-h{font-weight:900;font-size:19px;margin-bottom:6px}
+.estado-sub{font-size:12.5px;color:var(--muted);margin-bottom:12px}
+.estado-tx{font-size:13.5px;color:#c9c9d2;line-height:1.55;margin-bottom:16px}
+.estado-live{font-size:12.5px;font-weight:800;color:var(--gold-2);background:rgba(233,194,92,.1);border:1px solid rgba(233,194,92,.28);border-radius:999px;padding:8px 14px;display:inline-flex;align-items:center;gap:8px;margin-bottom:18px}
+.estado-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .estado-actions .action-btn{margin:0}
+.steps{display:flex;align-items:center;gap:6px;justify-content:center;margin:4px 0 18px}
+.step .dot{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.16)}
+.step.on .dot{background:var(--gold);box-shadow:0 0 0 4px rgba(233,194,92,.16)}
+.step.done .dot{background:var(--green)}
+.bar{width:28px;height:3px;border-radius:3px;background:rgba(255,255,255,.12)}
+.step.done + .bar{background:var(--green)}
 
-/* ── Chat ──────────────────────────────────────────────────────────────── */
-.messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column}
-.messages::-webkit-scrollbar{width:8px}.messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:8px}
+/* ── Chat ───────────────────────────────────────────────────────────────── */
+.messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;background:var(--panel)}
+.messages::-webkit-scrollbar{width:8px}.messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px}
 .msg{display:flex;flex-direction:column;margin-bottom:12px;max-width:90%;animation:msgIn .2s ease}
 @keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .msg.bot,.msg.sys{align-items:flex-start;margin-right:auto}.msg.user{align-items:flex-end;margin-left:auto}
-.bubble{padding:11px 14px;border-radius:18px;font-size:13.5px;line-height:1.45;word-break:break-word;white-space:pre-wrap;box-shadow:0 8px 20px rgba(0,0,0,.2)}
-.msg.bot .bubble,.msg.sys .bubble{background:var(--surface-2);color:#eef0f7;border:1px solid var(--line);border-bottom-left-radius:6px}
-.msg.user .bubble{background:linear-gradient(135deg,#4f6bff,#7b8cff);color:#fff;border-bottom-right-radius:6px}
+.bubble{padding:12px 14px;border-radius:14px;font-size:14px;line-height:1.45;word-break:break-word;white-space:pre-wrap}
+.msg.bot .bubble,.msg.sys .bubble{background:var(--surface-2);color:#eef0f7;border:1px solid var(--line);border-bottom-left-radius:5px}
+.msg.user .bubble{background:var(--gold);color:#1a1500;font-weight:600;border-bottom-right-radius:5px}
 .meta{font-size:10.5px;color:var(--muted);padding:4px 5px 0}
-.bubble img.chat-img{max-width:100%;border-radius:12px;margin-top:8px;display:block;cursor:pointer;border:1px solid var(--line-2)}
-.status-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;background:rgba(245,197,66,.14);color:var(--gold-2);border:1px solid rgba(245,197,66,.3);margin:8px 0 2px}
+.bubble img.chat-img{max-width:100%;border-radius:10px;margin-top:8px;display:block;cursor:pointer;border:1px solid var(--line-2)}
+.status-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:800;background:rgba(233,194,92,.14);color:var(--gold-2);border:1px solid rgba(233,194,92,.3);margin:8px 0 2px}
 
-/* ── Compose (solo en chat) ────────────────────────────────────────────── */
-.widget-compose{flex-shrink:0;border-top:1px solid var(--line);background:#0f0f1a;padding:12px;display:grid;grid-template-columns:44px 1fr 46px;gap:9px;align-items:end}
-#freeInput{min-height:44px;height:44px;max-height:96px;overflow:auto;margin:0;resize:none;border-radius:14px;font-size:14px;padding:11px 13px}
-.send-btn{height:44px;width:46px;padding:0;border:none;border-radius:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;background:linear-gradient(135deg,#5b78ff,#7b8cff);color:#fff;box-shadow:0 8px 18px rgba(91,120,255,.35);transition:transform .15s}
+/* Compose */
+.widget-compose{flex-shrink:0;border-top:1px solid var(--line);background:#0c0c10;padding:11px 12px;display:grid;grid-template-columns:44px 1fr 46px;gap:9px;align-items:end}
+#freeInput{min-height:44px;height:44px;max-height:96px;overflow:auto;margin:0;resize:none;border-radius:12px;font-size:16px;padding:11px 13px}
+.send-btn{height:44px;width:46px;padding:0;border:1px solid var(--gold-deep);border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;background:var(--gold);color:#1a1500;transition:transform .14s}
 .send-btn:active{transform:scale(.92)}
-.clip-btn{height:44px;width:44px;padding:0;border:none;border-radius:14px;background:rgba(255,255,255,.07);color:#aeb3c6;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:background .15s}
-.clip-btn:hover{background:rgba(255,255,255,.15)}
-#imgPreviewBar{display:flex;align-items:center;background:#0f0f1a;padding:8px 12px;border-top:1px solid var(--line);flex-shrink:0}
-#imgPreviewBar .img-bar-inner{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.06);border-radius:11px;padding:6px 9px;width:100%}
+.clip-btn{height:44px;width:44px;padding:0;border:1px solid var(--line);border-radius:12px;background:#15151a;color:#aeb3c6;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:.15s}
+.clip-btn:hover{background:#20202a}
+#imgPreviewBar{display:flex;align-items:center;background:#0c0c10;padding:8px 12px;border-top:1px solid var(--line);flex-shrink:0}
+#imgPreviewBar .img-bar-inner{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 9px;width:100%}
 #imgPreviewBar img{width:36px;height:36px;object-fit:cover;border-radius:8px;flex-shrink:0}
 #imgPreviewBar span{font-size:11.5px;color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #imgPreviewBar button{border:none;background:none;color:var(--muted);cursor:pointer;font-size:21px;line-height:1;padding:0 2px;flex-shrink:0}
 
 /* Toast */
-.toast{position:fixed;left:50%;bottom:106px;transform:translateX(-50%) translateY(10px);z-index:60;background:#16161f;color:#fff;border:1px solid var(--line-2);box-shadow:var(--shadow);padding:13px 18px;border-radius:14px;font-weight:800;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:320px;text-align:center}
+.toast{position:fixed;left:50%;bottom:calc(86px + var(--safe-b));transform:translateX(-50%) translateY(10px);z-index:60;background:#16161c;color:#fff;border:1px solid var(--line-2);box-shadow:0 16px 40px rgba(0,0,0,.6);padding:14px 18px;border-radius:12px;font-weight:800;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:320px;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-@media(max-width:700px){
-  .float-btn{right:14px;bottom:16px;height:54px}
-  .widget{right:10px;left:10px;bottom:80px;width:auto;height:76vh;max-height:76vh;border-radius:22px}
-}
-@media(max-width:420px){
-  .tiles{grid-template-columns:1fr}
-  .float-btn .fb-text{display:none}.float-btn{padding:0;width:54px;justify-content:center;gap:0}.float-btn .fb-ico{margin:0}
-  .widget{height:82vh;max-height:82vh}
+/* ── Desktop: panel acotado a la derecha ────────────────────────────────── */
+@media(min-width:760px){
+  .panel{left:auto;right:24px;top:auto;bottom:24px;width:420px;height:min(720px,calc(100vh - 48px));
+    border:1px solid var(--line-2);border-radius:20px;overflow:hidden;
+    transform:translateY(calc(100% + 24px))}
+  .panel.open{transform:none}
+  .panel-head{padding-top:15px}
 }
 </style>
 </head>
 <body>
 <iframe id="appFrame" src="https://bet-300.pw" allow="clipboard-read; clipboard-write; fullscreen"></iframe>
 
-<button id="floatBtn" class="float-btn" onclick="toggleWidget(true)">
+<button id="floatBtn" class="launcher" onclick="toggleWidget(true)" aria-label="Abrir cajero y soporte">
   <span class="fb-ico">💬</span>
-  <span class="fb-text">Cajero / Soporte<span class="fb-sub">Cargas · Retiros · Ayuda</span></span>
+  <span class="fb-text">Cajero<span class="fb-sub">Cargas · Retiros · Ayuda</span></span>
   <span id="floatUnread" class="float-badge hidden">0</span>
 </button>
 
-<section id="widget" class="widget">
-  <div class="widget-head">
-    <button id="backBtn" class="icon-btn hidden" onclick="goHome()">←</button>
+<div id="scrim" class="scrim" onclick="toggleWidget(false)"></div>
+
+<section id="widget" class="panel" role="dialog" aria-modal="true" aria-label="Cajero BET300">
+  <div class="panel-head">
+    <button id="backBtn" class="icon-btn hidden" onclick="goHome()" aria-label="Volver">←</button>
     <div class="head-avatar">B300</div>
     <div class="head-info">
-      <div class="brand-logo"><span>BET</span><span>300</span> · Cajero</div>
+      <div class="brand-logo"><span>BET</span>300 · Cajero</div>
       <div class="head-sub"><span class="dot"></span> En línea · respondemos al instante</div>
     </div>
-    <button class="icon-btn" onclick="toggleWidget(false)">×</button>
+    <button class="icon-btn" onclick="toggleWidget(false)" aria-label="Cerrar">×</button>
   </div>
 
   <div id="connBanner" style="display:none"><span>⚠</span><span>Sin conexión · Reconectando...</span></div>
 
-  <div class="widget-main">
+  <div class="panel-body">
     <div id="screenHome"   class="screen"></div>
     <div id="screenCarga"  class="screen hidden"></div>
     <div id="screenRetiro" class="screen hidden"></div>
@@ -219,6 +279,14 @@ textarea{resize:vertical;min-height:76px}
     <textarea id="freeInput" rows="1" placeholder="Escribí tu mensaje..."></textarea>
     <button class="send-btn" onclick="sendFreeMessage()">➤</button>
   </div>
+
+  <nav class="panel-nav" id="panelNav">
+    <button class="nav-item" data-screen="home"   onclick="goHome()"><span class="n-ico">🏠</span>Inicio</button>
+    <button class="nav-item" data-screen="carga"  onclick="goCarga()"><span class="n-ico">💳</span>Cargar</button>
+    <button class="nav-item" data-screen="retiro" onclick="goRetiro()"><span class="n-ico">🏧</span>Retirar</button>
+    <button class="nav-item" data-screen="estado" onclick="goEstado()"><span class="n-ico">🧾</span>Estado</button>
+    <button class="nav-item" data-screen="chat"   onclick="goChat()"><span class="n-ico">💬</span>Chat<span id="navUnread" class="badge hidden">0</span></button>
+  </nav>
 </section>
 
 <div id="toast" class="toast"></div>
@@ -264,6 +332,7 @@ function tiempoEspera(){
   return `Hace ${hs} hora${hs>1?"s":""}`;
 }
 function toast(t){const el=$("toast");el.textContent=t;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2400)}
+function haptic(ms){try{navigator.vibrate&&navigator.vibrate(ms||10)}catch(e){}}
 
 // ── Monitor de conexión ────────────────────────────────────────────────────
 let _connFails=0;
@@ -285,11 +354,15 @@ const SCREENS=["home","carga","retiro","clave","estado","chat"];
 function showScreen(name){
   state.screen=name;
   SCREENS.forEach(s=>{const el=$("screen"+cap(s));if(el)el.classList.toggle("hidden",s!==name);});
-  $("backBtn").classList.toggle("hidden",name==="home");
   $("composeBox").classList.toggle("hidden",name!=="chat");
   if(name!=="chat")$("imgPreviewBar").classList.add("hidden");
+  // barra inferior: marcar activa ("clave" vive bajo Inicio)
+  const navName=(name==="clave")?"home":name;
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n.dataset.screen===navName));
+  // back solo en la sub-pantalla de clave
+  if($("backBtn"))$("backBtn").classList.toggle("hidden",name!=="clave");
   const sc=$("screen"+cap(name));
-  if(sc&&name!=="chat")sc.scrollTop=0;
+  if(sc&&name!=="chat"){sc.scrollTop=0;sc.classList.remove("in");void sc.offsetWidth;sc.classList.add("in");}
   if(name==="chat"){state.chatLibre=true;clearUnread();setTimeout(scrollChat,30);}
   else state.chatLibre=false;
 }
@@ -302,15 +375,20 @@ function goChat(){showScreen("chat");renderChat();}
 
 // ── No leídos ──────────────────────────────────────────────────────────────
 function updateUnreadUI(){
-  const fb=$("floatUnread"),hb=$("homeUnread");
-  [fb,hb].forEach(el=>{if(el){el.textContent=state.unread>99?"99+":state.unread;el.classList.toggle("hidden",!state.unread);}});
+  const els=[$("floatUnread"),$("homeUnread"),$("navUnread")];
+  els.forEach(el=>{if(el){el.textContent=state.unread>99?"99+":state.unread;el.classList.toggle("hidden",!state.unread);}});
 }
 function bumpUnread(){state.unread++;updateUnreadUI();}
 function clearUnread(){state.unread=0;updateUnreadUI();}
 
+// ── Apertura / cierre del panel ─────────────────────────────────────────────
 function toggleWidget(open){
-  $("widget").classList.toggle("open",!!open);
+  const w=$("widget"),scrim=$("scrim");
+  w.classList.toggle("open",!!open);
+  if(scrim)scrim.classList.toggle("show",!!open);
+  document.body.style.overflow=open?"hidden":"";
   if(open){
+    haptic(8);
     renderHome();
     showScreen(state.screen||"home");
     if(state.chatId)startChatPoll();
@@ -398,7 +476,6 @@ async function pollPortalThread(){
 
     const origen=String(m.origen||"").toUpperCase();
     const texto=m.mensaje||"";
-    // Mostramos en portal solo respuestas del panel/operador para evitar duplicar mensajes propios
     if(origen==="OPERADOR"&&(texto||m.imagen_url||m.imagen)){
       const imgUrl=m.imagen_url||m.imagen||null;
       const tk=texto?texto.substring(0,200):(m.fecha||"")+"|img|"+(imgUrl||"").substring(0,80);
@@ -411,43 +488,50 @@ async function pollPortalThread(){
   savePortalThreadSeen();
 }
 
-// Compatibilidad: el compose vive en la pantalla de chat
 function setComposeEnabled(enabled){state.chatLibre=!!enabled;}
 
-// ── Inicio (login / menú) ──────────────────────────────────────────────────
+// ── Inicio (login / dashboard) ─────────────────────────────────────────────
 function renderHome(){
   const home=$("screenHome");
   if(!home)return;
   if(!state.usuario){
-    home.innerHTML=`<div class="user-gate-title">Bienvenido a BET300 👋</div>
-      <div class="welcome-txt">Para cargar, retirar o pedir soporte, ingresá tu usuario de plataforma.</div>
-      <label style="margin-top:16px">Usuario de plataforma</label>
-      <input id="usuarioInicial" placeholder="Ej: usuario123" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('telefonoInicial').focus()">
-      <label style="margin-top:12px">Teléfono (WhatsApp, con código de área)</label>
+    home.innerHTML=`<div class="gate-badge">🎰 BET300 · Cajero</div>
+      <div class="gate-title">Bienvenido 👋</div>
+      <div class="gate-txt">Para cargar, retirar o pedir soporte, ingresá tu usuario de plataforma y tu teléfono.</div>
+      <label>Usuario de plataforma</label>
+      <input id="usuarioInicial" placeholder="Ej: usuario123" autocomplete="username" inputmode="text" onkeydown="if(event.key==='Enter')document.getElementById('telefonoInicial').focus()">
+      <label>Teléfono (WhatsApp, con código de área)</label>
       <input id="telefonoInicial" placeholder="Ej: 11 2345 6789" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter')guardarUsuarioInicial()">
       <button class="action-btn" id="gateBtn" onclick="guardarUsuarioInicial()">Continuar</button>
-      <div id="gateError" style="display:none;margin-top:12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:12px;padding:10px;font-size:13px;font-weight:700;line-height:1.4"></div>
+      <div id="gateError" style="display:none;margin-top:12px;background:rgba(255,84,104,.1);border:1px solid rgba(255,84,104,.3);color:#ffb3bd;border-radius:12px;padding:11px;font-size:13px;font-weight:700;line-height:1.45"></div>
+      <div class="trust-row">
+        <span class="trust">🔒 Datos solo en este equipo</span>
+        <span class="trust">⚡ Respuesta al instante</span>
+      </div>
       <div class="flow-note">Tu usuario y teléfono quedan vinculados, para tu seguridad.</div>`;
+    setTimeout(()=>$("usuarioInicial")?.focus(),120);
     return;
   }
   const pend=tieneSolicitudPendiente();
   home.innerHTML=`
-    <div class="hero">
-      <div class="user-chip">👤 ${esc(state.usuario)}</div>
-      <button class="link-btn" onclick="cambiarUsuario()">Cambiar usuario</button>
+    <div class="greet">
+      <div><div class="greet-hi">Hola de nuevo</div><div class="greet-user">👤 ${esc(state.usuario)}</div></div>
+      <button class="link-btn" onclick="cambiarUsuario()">Cambiar</button>
     </div>
     ${pend?`<div class="pending-banner" onclick="goEstado()">
-      <div><div class="pending-title">Solicitud de ${esc(tipoLabel())} en revisión</div>
+      <div class="pb-ico">⏳</div>
+      <div><div class="pending-title"><span class="live-dot"></span>${esc(tipoLabel())} en revisión</div>
       <div class="pending-text">${esc(tiempoEspera()||"En proceso")} · tocá para ver el estado</div></div>
       <span class="chev">›</span></div>`:""}
-    <div class="menu-title">¿Qué necesitás hacer?</div>
-    <div class="tiles">
-      <button class="tile gold" ${pend?"disabled":""} onclick="goCarga()"><span class="tile-ico">💳</span><span class="tile-tx">Cargar saldo<small>Avisá tu transferencia</small></span></button>
-      <button class="tile green" ${pend?"disabled":""} onclick="goRetiro()"><span class="tile-ico">🏧</span><span class="tile-tx">Retirar<small>Pedí tu retiro</small></span></button>
-      <button class="tile" onclick="goEstado()"><span class="tile-ico">🧾</span><span class="tile-tx">Ver estado<small>Tu solicitud</small></span></button>
-      <button class="tile" onclick="goChat()"><span class="tile-ico">💬</span><span class="tile-tx">Chat soporte<small>Hablá con un operador</small></span><span id="homeUnread" class="badge hidden">0</span></button>
-      <button class="tile wide" onclick="goClave()"><span class="tile-ico">🔑</span><span class="tile-tx">Reiniciar clave<small>Reseteá tu clave de juego</small></span></button>
-    </div>`;
+    <div class="section-label">¿Qué necesitás hacer?</div>
+    <button class="big-btn gold" ${pend?"disabled":""} onclick="goCarga()">
+      <span class="bb-ico">💳</span><span class="bb-tx">Cargar saldo<small>Avisá tu transferencia y te acreditamos</small></span><span class="bb-arrow">›</span>
+    </button>
+    <button class="big-btn green" ${pend?"disabled":""} onclick="goRetiro()">
+      <span class="bb-ico">🏧</span><span class="bb-tx">Retirar<small>Pedí tu retiro a revisión</small></span><span class="bb-arrow">›</span>
+    </button>
+    <button class="row-btn" onclick="goClave()"><span class="rb-ico">🔑</span> Reiniciar clave de juego <span class="rb-arrow">›</span></button>
+    <div class="flow-note" style="margin-top:14px">💬 ¿Dudas? Tenés <b>Chat</b> y <b>Estado</b> siempre a mano en la barra de abajo.</div>`;
   updateUnreadUI();
 }
 
@@ -473,7 +557,6 @@ async function guardarUsuarioInicial(){
   if(btn){btn.disabled=false;btn.textContent="Continuar";}
 
   const verdict=d.verdict||"";
-  // Conflicto o bloqueo → NO deja entrar
   if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){
     return _gateError("⚠️ "+(d.mensaje||"No pudimos validar tus datos. Contactá a soporte."));
   }
@@ -498,11 +581,11 @@ function cambiarUsuario(){
   if(existing){existing.remove();return}
   const home=$("screenHome");
   if(!home)return;
-  home.insertAdjacentHTML("beforeend",`<div id="cambioConfirm" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.28);border-radius:14px;padding:12px;margin-top:14px">
+  home.insertAdjacentHTML("beforeend",`<div id="cambioConfirm" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.28);border-radius:14px;padding:13px;margin-top:14px">
     <div style="font-size:13px;color:#fca5a5;margin-bottom:10px">¿Cambiar el usuario guardado en este dispositivo?</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button class="action-btn secondary-btn" style="margin:0" onclick="document.getElementById('cambioConfirm').remove()">Cancelar</button>
-      <button class="action-btn" style="margin:0;background:#ef4444;color:#fff;background-image:none" onclick="_confirmarCambioUsuario()">Cambiar</button>
+      <button class="action-btn" style="margin:0;background:#ef4444;color:#fff;border-color:#ef4444" onclick="_confirmarCambioUsuario()">Cambiar</button>
     </div>
   </div>`);
 }
@@ -538,7 +621,7 @@ function limpiarPendienteManual(){
   if(existing){existing.remove();return}
   const s=$("screenEstado");
   if(!s)return;
-  s.insertAdjacentHTML("beforeend",`<div id="limpiarConfirm" style="background:rgba(245,197,66,.08);border:1px solid rgba(245,197,66,.25);border-radius:14px;padding:12px;margin-top:14px">
+  s.insertAdjacentHTML("beforeend",`<div id="limpiarConfirm" style="background:rgba(233,194,92,.08);border:1px solid rgba(233,194,92,.25);border-radius:14px;padding:13px;margin-top:14px">
     <div style="font-size:13px;color:#ffe188;margin-bottom:10px">¿Marcar como resuelta? Hacelo solo si la solicitud ya fue procesada.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <button class="action-btn secondary-btn" style="margin:0" onclick="document.getElementById('limpiarConfirm').remove()">Cancelar</button>
@@ -558,14 +641,12 @@ function _confirmarLimpiarPendiente(){
 function estadoNormalizado(v){return String(v||"").trim().toUpperCase();}
 function esEstadoFinalAprobado(v){
   const e=estadoNormalizado(v);
-  // Solo estados verdaderamente finales — APROBADA_MANUAL es intermedio (pre-ejecución)
   return ["ACREDITADA","PAGADA","COMPLETADA"].includes(e);
 }
 function esEstadoFinalRechazado(v){
   const e=estadoNormalizado(v);
   return ["RECHAZADA","CANCELADA","ERROR"].includes(e);
 }
-// Acepta IDs numéricos O strings no vacíos (UUIDs también son válidos)
 function solicitudIdValido(){
   const raw=String(state.solicitudId||"").trim();
   if(!raw)return null;
@@ -578,30 +659,35 @@ function startEstadoPoll(){
   estadoPollTimer=setInterval(()=>consultarEstadoSolicitud(false),4000);
   setTimeout(()=>consultarEstadoSolicitud(false),800);
 }
-function setEstadoLive(txt){const e=$("estadoLive");if(e)e.textContent=txt;}
+function setEstadoLive(txt){const e=$("estadoLive");if(e)e.innerHTML='<span class="live-dot"></span>'+esc(txt);}
 
 // ── Estado (pantalla) ──────────────────────────────────────────────────────
 function renderEstado(){
   const s=$("screenEstado");
   if(!s)return;
   if(tieneSolicitudPendiente()){
-    s.innerHTML=`<div class="screen-title">🧾 Estado de tu solicitud</div>
+    s.innerHTML=`<div class="screen-title">Estado de tu solicitud</div>
       <div class="estado-card pending">
         <div class="estado-ico">⏳</div>
-        <div class="estado-h">Solicitud de ${esc(tipoLabel())} en revisión</div>
+        <div class="estado-h">${esc(tipoLabel())} en revisión</div>
         <div class="estado-sub">${esc(tiempoEspera()||"Procesando")}</div>
+        <div class="steps">
+          <div class="step done"><span class="dot"></span></div><div class="bar"></div>
+          <div class="step on"><span class="dot"></span></div><div class="bar"></div>
+          <div class="step"><span class="dot"></span></div>
+        </div>
         <div class="estado-tx">Un operador la está revisando. Te avisamos acá y por el chat cuando se confirme.</div>
-        <div id="estadoLive" class="estado-live">Consultando estado…</div>
+        <div id="estadoLive" class="estado-live"><span class="live-dot"></span>Consultando estado…</div>
         <div class="estado-actions">
           <button class="action-btn" onclick="goChat()">💬 Abrir chat</button>
           <button class="action-btn secondary-btn" onclick="verEstado()">Actualizar</button>
         </div>
-        <button class="link-btn" onclick="limpiarPendienteManual()">Marcar como resuelta en este dispositivo</button>
+        <button class="link-btn" style="width:100%;margin-top:4px" onclick="limpiarPendienteManual()">Marcar como resuelta en este dispositivo</button>
       </div>`;
     if(solicitudIdValido())consultarEstadoSolicitud(true);
     else setEstadoLive("Sin nº de solicitud para consultar");
   }else{
-    s.innerHTML=`<div class="screen-title">🧾 Estado</div>
+    s.innerHTML=`<div class="screen-title">Estado</div>
       <div class="estado-card">
         <div class="estado-ico">✅</div>
         <div class="estado-h">No tenés solicitudes activas</div>
@@ -625,7 +711,7 @@ function limpiarPendienteAprobado(obs){
   const titulo=esRetiro?"¡Retiro procesado!":"¡Carga acreditada!";
   const sub=esRetiro?"Revisá tu cuenta bancaria.":"Ya podés jugar.";
   const s=$("screenEstado");
-  if(s)s.innerHTML=`<div class="screen-title">🧾 Estado</div>
+  if(s)s.innerHTML=`<div class="screen-title">Estado</div>
     <div class="estado-card ok">
       <div class="estado-ico">🎉</div>
       <div class="estado-h">${titulo}</div>
@@ -633,6 +719,7 @@ function limpiarPendienteAprobado(obs){
       ${obs?`<div class="estado-tx">${escMsg(obs)}</div>`:""}
       <div class="estado-actions"><button class="action-btn" onclick="goHome()">Volver al inicio</button><button class="action-btn secondary-btn" onclick="goChat()">Chat</button></div>
     </div>`;
+  haptic([30,40,30]);
   renderHome();
   if($("widget")?.classList.contains("open"))showScreen("estado");
   const notifTitulo=esRetiro?"BET300 · ¡Retiro procesado!":"BET300 · ¡Carga acreditada!";
@@ -665,14 +752,13 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
   }
   if(esEstadoFinalRechazado(estado)){
     rechazadoStreak++;
-    // Confirmar con 3 polls consecutivos antes de mostrar rechazo (evita falsos positivos de estados transitorios)
     if(rechazadoStreak < 3){setEstadoLive("⏳ En verificación");return "PENDIENTE";}
     stopEstadoPoll();
     rechazadoStreak=0;
     state.pendingTipo="";state.solicitudId="";
     ["bet300_pending_tipo","bet300_solicitud_id","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
     const s=$("screenEstado");
-    if(s)s.innerHTML=`<div class="screen-title">🧾 Estado</div>
+    if(s)s.innerHTML=`<div class="screen-title">Estado</div>
       <div class="estado-card bad">
         <div class="estado-ico">⚠️</div>
         <div class="estado-h">Tu solicitud no pudo procesarse</div>
@@ -683,7 +769,7 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
     if($("widget")?.classList.contains("open"))showScreen("estado");
     return estado;
   }
-  rechazadoStreak=0; // resetear streak si el estado no es rechazo
+  rechazadoStreak=0;
   setEstadoLive("⏳ En verificación");
   return estado||"PENDIENTE";
 }
@@ -692,7 +778,7 @@ async function verEstado(){
   else await consultarEstadoSolicitud(true);
 }
 
-// ── Validación usuario ────────────────────────────────────────────────────
+// ── Validación usuario (agentes, en background) ────────────────────────────
 async function iniciarValidacionUsuarioBackground(usuario){
   const u=String(usuario||"").trim();
   if(!u)return;
@@ -722,7 +808,7 @@ async function initRoute(){
   const r=await rpc("landing_resolver_ruta_publica",{p_public_code:state.publicCode});
   if(!r.error){const row=normalize(r.data);state.pcCodigo=row?.pc_codigo||row?.pc||row?.codigo_pc||null;}
   if(!state.pcCodigo){const map={"rt-a8f31":"P1","rt-k6d92":"P2","rt-m4q77":"P3","rt-z9p42":"P4","rt-x2v61":"P5"};state.pcCodigo=map[state.publicCode]||"P1";}
-  console.log("[BET300 V17] canal",state.pcCodigo,"ruta",state.publicCode);
+  console.log("[BET300 V18] canal",state.pcCodigo,"ruta",state.publicCode);
 }
 
 // ── Image upload (comprobantes + chat) ───────────────────────────────────
@@ -780,7 +866,7 @@ async function obtenerBilletera(){
     const segura=await rpc("landing_obtener_billetera_segura",{
       p_validacion_usuario_id:Number(localStorage.getItem("bet300_validacion_id")||0),
       p_usuario:state.usuario||"",p_nombre_completo:state.usuario||"",
-      p_telefono:"",p_dni:"",p_pc_codigo:pc
+      p_telefono:state.telefono||"",p_dni:"",p_pc_codigo:pc
     });
     if(!segura.error&&segura.data&&segura.data.length){state.billetera=normalize(segura.data)||segura.data[0];return state.billetera;}
     const publica=await rpc("landing_obtener_billetera",{p_pc_codigo:pc});
@@ -794,20 +880,35 @@ function billeteraPayloadPlano(){
 }
 
 // ── Cargar (pantalla) ──────────────────────────────────────────────────────
+const MONTOS_RAPIDOS=[2000,5000,10000,20000,50000];
 function renderCarga(){
   const s=$("screenCarga");
-  s.innerHTML=`<div class="screen-title">💳 Cargar saldo</div>
-    <div class="user-chip" style="margin-bottom:12px">👤 ${esc(state.usuario)}</div>
-    <div id="billeteraSlot"><div class="muted-line">Obteniendo datos de billetera…</div></div>
+  s.innerHTML=`<div class="screen-title">Cargar saldo</div>
+    <div class="screen-desc">Transferí a la cuenta de abajo y después confirmá el monto. Te acreditamos al verificarlo.</div>
+    <div class="user-chip">👤 ${esc(state.usuario)}</div>
+    <div id="billeteraSlot">
+      <div class="sk-card">
+        <div class="sk sk-line w40"></div>
+        <div class="sk sk-line lg"></div>
+        <div class="sk sk-line w80"></div>
+        <div class="sk sk-line w60"></div>
+      </div>
+    </div>
     <div class="form-card">
       <label>Monto transferido</label>
-      <input id="cargaMonto" type="number" min="1" inputmode="numeric" placeholder="Ej: 5000">
+      <input id="cargaMonto" type="number" min="1" inputmode="numeric" placeholder="Ej: 5000" oninput="syncChips()">
+      <div class="chips">${MONTOS_RAPIDOS.map(v=>`<button type="button" class="chip" data-v="${v}" onclick="setMonto(${v})">$${v.toLocaleString("es-AR")}</button>`).join("")}</div>
       <label>Titular que transfiere</label>
-      <input id="cargaTitular" placeholder="Ej: Maria Lopez">
+      <input id="cargaTitular" placeholder="Ej: Maria Lopez" autocomplete="name">
       <button id="btnEnviarCarga" class="action-btn" onclick="enviarSolicitudCargaDirecta()">Ya transferí · Enviar solicitud</button>
-      <button class="action-btn secondary-btn" style="margin-top:8px" onclick="goChat()">Necesito ayuda</button>
+      <button class="action-btn secondary-btn" style="margin-top:9px" onclick="goChat()">Necesito ayuda</button>
     </div>`;
   cargarBilleteraEnSlot();
+}
+function setMonto(v){const i=$("cargaMonto");if(i){i.value=v;haptic(6);syncChips();}}
+function syncChips(){
+  const val=String($("cargaMonto")?.value||"").trim();
+  document.querySelectorAll("#screenCarga .chip").forEach(c=>c.classList.toggle("on",c.dataset.v===val));
 }
 async function cargarBilleteraEnSlot(){
   const b=await obtenerBilletera();
@@ -815,13 +916,30 @@ async function cargarBilleteraEnSlot(){
   if(!slot)return;
   if(!b){slot.innerHTML=`<div class="muted-line">Sin billetera disponible por ahora. Consultá por soporte.</div>`;return;}
   const alias=b?.alias||"",cbu=b?.cbu||b?.cvu||"",titular=b?.titular||"",tipo=inferirTipoBilletera(b);
+  const canShare=!!navigator.share;
   slot.innerHTML=`<div class="transfer-card">
-    <div class="transfer-title">📥 Transferí a esta cuenta</div>
-    ${alias?`<div class="transfer-field"><div class="transfer-label">Alias</div><div class="transfer-value">${esc(alias)}</div><button class="copy-btn" onclick="copyText('${esc(alias)}',this)">Copiar alias</button></div>`:""}
-    ${cbu?`<div class="transfer-field"><div class="transfer-label">CBU / CVU</div><div class="transfer-value">${esc(cbu)}</div><button class="copy-btn" onclick="copyText('${esc(cbu)}',this)">Copiar CBU / CVU</button></div>`:""}
-    ${titular?`<div class="transfer-field"><div class="transfer-label">Titular</div><div class="transfer-value">${esc(titular)}</div></div>`:""}
-    <div class="transfer-field"><div class="transfer-label">Tipo</div><div class="transfer-value">${esc(tipo)}</div></div>
+    <div class="transfer-head">
+      <div class="transfer-title">📥 Transferí a esta cuenta</div>
+      ${canShare?`<button class="share-btn" onclick="compartirBilletera()">↗ Compartir</button>`:`<button class="share-btn" onclick="copiarTodo(this)">⧉ Copiar todo</button>`}
+    </div>
+    ${alias?`<div class="transfer-field"><div class="tf-main"><div class="transfer-label">Alias</div><div class="transfer-value">${esc(alias)}</div></div><button class="copy-btn" data-lbl="Copiar" onclick="copyText('${esc(alias)}',this)">Copiar</button></div>`:""}
+    ${cbu?`<div class="transfer-field"><div class="tf-main"><div class="transfer-label">CBU / CVU</div><div class="transfer-value">${esc(cbu)}</div></div><button class="copy-btn" data-lbl="Copiar" onclick="copyText('${esc(cbu)}',this)">Copiar</button></div>`:""}
+    ${titular?`<div class="transfer-field"><div class="tf-main"><div class="transfer-label">Titular</div><div class="transfer-value">${esc(titular)}</div></div></div>`:""}
+    <div class="transfer-field"><div class="tf-main"><div class="transfer-label">Tipo</div><div class="transfer-value">${esc(tipo)}</div></div></div>
+    <div class="transfer-hint"><span>💡</span><span>Transferí primero, después completá el monto y tocá <b>Ya transferí</b>.</span></div>
   </div>`;
+}
+function _billeteraTexto(){
+  const b=state.billetera||{};
+  const alias=b?.alias||"",cbu=b?.cbu||b?.cvu||"",titular=b?.titular||"",tipo=inferirTipoBilletera(b);
+  return `BET300 · Datos para transferir\n${alias?"Alias: "+alias+"\n":""}${cbu?"CBU/CVU: "+cbu+"\n":""}${titular?"Titular: "+titular+"\n":""}Tipo: ${tipo}`.trim();
+}
+async function copiarTodo(btn){
+  try{await navigator.clipboard.writeText(_billeteraTexto());}catch(e){}
+  const old=btn.textContent;btn.textContent="✓ Copiado";haptic(8);setTimeout(()=>btn.textContent=old,1300);
+}
+async function compartirBilletera(){
+  try{await navigator.share({title:"BET300 · Transferir",text:_billeteraTexto()});}catch(e){}
 }
 
 async function enviarSolicitudCargaDirecta(){
@@ -833,7 +951,7 @@ async function enviarSolicitudCargaDirecta(){
   await enviarSolicitudCarga(state.usuario,monto,titular);
 }
 
-async function copyText(t,btn){if(!t)return;try{await navigator.clipboard.writeText(t);}catch(e){}btn.textContent="✓ Copiado";setTimeout(()=>btn.textContent=btn.dataset.lbl||"Copiar",1300);}
+async function copyText(t,btn){if(!t)return;try{await navigator.clipboard.writeText(t);}catch(e){}haptic(8);btn.classList.add("done");btn.textContent="✓ Copiado";setTimeout(()=>{btn.classList.remove("done");btn.textContent=btn.dataset.lbl||"Copiar";},1300);}
 
 function limpiarSolicitudAnteriorAntesDeNueva(){
   stopEstadoPoll();stopChatPoll();estadoFinalNotificado=false;
@@ -844,10 +962,10 @@ function limpiarSolicitudAnteriorAntesDeNueva(){
 async function enviarSolicitudCarga(usuario,monto,titular){
   limpiarSolicitudAnteriorAntesDeNueva();
   const bp=billeteraPayloadPlano();
-  const payload={usuario,monto:Number(monto),titular,pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CARGA",...bp};
+  const payload={usuario,monto:Number(monto),titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CARGA",...bp};
   const destino=bp.billetera_nombre?`${bp.billetera_nombre}${bp.billetera_alias?" · "+bp.billetera_alias:""}`:null;
   let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_destino:destino,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_metadata:payload});
-  if(res.error){console.warn("[V17]",res.error);res=await rpc("landing_crear_solicitud_v3_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_comprobante_url:null,p_extra:payload});}
+  if(res.error){console.warn("[V18]",res.error);res=await rpc("landing_crear_solicitud_v3_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_comprobante_url:null,p_extra:payload});}
   if(res.error){res=await rpc("landing_crear_chat_v2_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_tipo:"CARGA",p_extra:payload});}
   if(res.error){toast("No pudimos enviar la solicitud. Probá por el chat.");goChat();return;}
   const data=normalize(res.data)||res.data||{};
@@ -857,7 +975,7 @@ async function enviarSolicitudCarga(usuario,monto,titular){
   if(chatId){state.chatId=String(chatId);localStorage.setItem("bet300_chat_id",state.chatId);}
   if(chatToken){state.chatToken=String(chatToken);localStorage.setItem("bet300_chat_token",state.chatToken);}
   setPendiente("CARGA",String(solicitudId||""));
-  toast("Solicitud enviada ✅");
+  toast("Solicitud enviada ✅");haptic([20,30,20]);
   renderHome();
   goEstado();
   startChatPoll();
@@ -868,18 +986,18 @@ async function enviarSolicitudCarga(usuario,monto,titular){
 // ── Retiro (pantalla) ──────────────────────────────────────────────────────
 function renderRetiro(){
   const s=$("screenRetiro");
-  s.innerHTML=`<div class="screen-title">🏧 Solicitar retiro</div>
-    <div class="user-chip" style="margin-bottom:12px">👤 ${esc(state.usuario)}</div>
+  s.innerHTML=`<div class="screen-title">Solicitar retiro</div>
+    <div class="screen-desc">El retiro queda sujeto a revisión de cuenta y saldo disponible.</div>
+    <div class="user-chip">👤 ${esc(state.usuario)}</div>
     <div class="form-card">
-      <div class="welcome-txt" style="margin-bottom:12px">El retiro queda sujeto a revisión de cuenta y saldo disponible.</div>
       <label>Monto</label>
       <input id="retiroMonto" type="number" min="1" inputmode="numeric" placeholder="Ej: 10000">
       <label>Alias / CBU destino</label>
       <input id="retiroDestino" placeholder="Alias o CBU/CVU donde cobrás">
       <label>Titular destino</label>
-      <input id="retiroTitular" placeholder="Nombre del titular de la cuenta">
+      <input id="retiroTitular" placeholder="Nombre del titular de la cuenta" autocomplete="name">
       <button id="btnEnviarRetiro" class="action-btn" onclick="enviarSolicitudRetiro()">Enviar retiro a revisión</button>
-      <button class="action-btn secondary-btn" style="margin-top:8px" onclick="goChat()">Necesito ayuda</button>
+      <button class="action-btn secondary-btn" style="margin-top:9px" onclick="goChat()">Necesito ayuda</button>
     </div>`;
 }
 
@@ -892,13 +1010,13 @@ async function enviarSolicitudRetiro(){
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
   limpiarSolicitudAnteriorAntesDeNueva();
   const msg="Solicitud de RETIRO: $"+monto+" · Destino: "+destino+" · Titular: "+titular;
-  const payload={usuario,monto,destino,titular,pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"RETIRO"};
+  const payload={usuario,monto,destino,titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"RETIRO"};
   let res=await rpc("landing_portal_v16_crear_solicitud",{
     p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"RETIRO",
     p_monto:monto,p_titular:titular,p_destino:destino,p_mensaje:msg,p_metadata:payload
   });
   if(res.error){
-    console.warn("[V17] retiro v16 falló",res.error);
+    console.warn("[V18] retiro v16 falló",res.error);
     res=await rpc("landing_crear_solicitud_v3_blindado",{
       p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"RETIRO",
       p_monto:monto,p_titular:titular,p_comprobante_url:null,p_extra:payload
@@ -918,7 +1036,7 @@ async function enviarSolicitudRetiro(){
   if(chatId){state.chatId=String(chatId);localStorage.setItem("bet300_chat_id",state.chatId);}
   if(chatToken){state.chatToken=String(chatToken);localStorage.setItem("bet300_chat_token",state.chatToken);}
   setPendiente("RETIRO",String(solicitudId||"pendiente-local-"+Date.now()));
-  toast("Retiro enviado a revisión 🕓");
+  toast("Retiro enviado a revisión 🕓");haptic([20,30,20]);
   renderHome();
   goEstado();
   startChatPoll();
@@ -929,14 +1047,14 @@ async function enviarSolicitudRetiro(){
 // ── Reset de clave (pantalla) — tipo CAMBIO_CLAVE ──────────────────────────
 function renderClave(){
   const s=$("screenClave");
-  s.innerHTML=`<div class="screen-title">🔑 Reiniciar clave</div>
-    <div class="user-chip" style="margin-bottom:12px">👤 ${esc(state.usuario)}</div>
+  s.innerHTML=`<div class="screen-title">Reiniciar clave</div>
+    <div class="screen-desc">Pedí el reseteo de tu clave de juego. Si dejás el campo vacío, se resetea a la clave por defecto <b>12345a</b>.</div>
+    <div class="user-chip">👤 ${esc(state.usuario)}</div>
     <div class="form-card">
-      <div class="welcome-txt" style="margin-bottom:12px">Pedí el reseteo de tu clave de juego. Si dejás el campo vacío, se resetea a la clave por defecto <b>12345a</b>.</div>
       <label>Nueva clave (opcional)</label>
       <input id="claveNueva" placeholder="Mínimo 6 caracteres · letras y números">
       <button id="btnEnviarClave" class="action-btn" onclick="enviarSolicitudClave()">Solicitar reseteo de clave</button>
-      <button class="action-btn secondary-btn" style="margin-top:8px" onclick="goChat()">Necesito ayuda</button>
+      <button class="action-btn secondary-btn" style="margin-top:9px" onclick="goChat()">Necesito ayuda</button>
     </div>`;
 }
 
@@ -947,10 +1065,9 @@ async function enviarSolicitudClave(){
   if(!/^[a-zA-Z0-9]+$/.test(clave))return toast("Solo letras y números, sin espacios ni símbolos");
   const btn=$("btnEnviarClave");
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
-  // No bloquea carga/retiro: el cambio de clave es independiente y se manda como una solicitud más.
-  const payload={usuario:state.usuario,pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CAMBIO_CLAVE",password_nuevo:clave};
+  const payload={usuario:state.usuario,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CAMBIO_CLAVE",password_nuevo:clave};
   let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:state.usuario,p_tipo:"CAMBIO_CLAVE",p_monto:0,p_titular:"",p_destino:null,p_mensaje:"Solicitud de CAMBIO_CLAVE",p_metadata:payload});
-  if(res.error){console.warn("[V17] clave v16 falló",res.error);res=await rpc("landing_crear_chat_v2_blindado",{p_public_code:state.publicCode,p_usuario:state.usuario,p_mensaje:"Solicitud de CAMBIO DE CLAVE",p_tipo:"CAMBIO_CLAVE",p_extra:payload});}
+  if(res.error){console.warn("[V18] clave v16 falló",res.error);res=await rpc("landing_crear_chat_v2_blindado",{p_public_code:state.publicCode,p_usuario:state.usuario,p_mensaje:"Solicitud de CAMBIO DE CLAVE",p_tipo:"CAMBIO_CLAVE",p_extra:payload});}
   if(res.error){toast("No pudimos enviar la solicitud. Probá por el chat.");goChat();return;}
   const d=normalize(res.data)||res.data||{};
   if(d.chat_id){state.chatId=String(d.chat_id);localStorage.setItem("bet300_chat_id",state.chatId);}
@@ -977,7 +1094,7 @@ async function enviarMensajeSoporte(txt,imagenUrl=null){
 
   if(!res||res.error){
     const bp=billeteraPayloadPlano();
-    const payload={usuario:state.usuario,pc_codigo:state.pcCodigo||"P1",public_code:state.publicCode,tipo:"SOPORTE",...bp,...(imagenUrl?{imagen_url:imagenUrl}:{})};
+    const payload={usuario:state.usuario,telefono:state.telefono||"",pc_codigo:state.pcCodigo||"P1",public_code:state.publicCode,tipo:"SOPORTE",...bp,...(imagenUrl?{imagen_url:imagenUrl}:{})};
     res=await rpc("landing_portal_v16_crear_solicitud",{
       p_public_code:state.publicCode,p_usuario:state.usuario,
       p_tipo:"SOPORTE",p_monto:0,p_titular:"",p_destino:null,
@@ -1039,7 +1156,6 @@ async function subscribePush(){
 }
 async function notificarLocal(title,body,url,tag){
   if(!("serviceWorker" in navigator)||Notification.permission!=="granted")return;
-  // Solo si la página está oculta O el widget está cerrado
   if(document.visibilityState==="visible"&&$("widget")?.classList.contains("open"))return;
   try{
     const reg=await navigator.serviceWorker.ready;
@@ -1071,8 +1187,9 @@ function chequearPendienteViejo(){
   setTimeout(()=>toast(`Tu solicitud lleva +${Math.round(hs)}h. Si ya fue procesada, marcala como resuelta en Estado.`),3000);
 }
 
-// ── Enter para enviar (Shift+Enter = nueva línea) ────────────────────────
+// ── Teclado: Enter para enviar / Esc para cerrar ──────────────────────────
 document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"&&$("widget")?.classList.contains("open")){toggleWidget(false);return;}
   if(e.target.id!=="freeInput")return;
   if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendFreeMessage();}
 });
