@@ -233,6 +233,7 @@ const state={
   publicCode:new URLSearchParams(location.search).get("r")||DEFAULT_ROUTE,
   pcCodigo:null,
   usuario:localStorage.getItem("bet300_usuario")||"",
+  telefono:localStorage.getItem("bet300_telefono")||"",
   solicitudId:localStorage.getItem("bet300_solicitud_id")||"",
   chatId:localStorage.getItem("bet300_chat_id")||"",
   chatToken:localStorage.getItem("bet300_chat_token")||"",
@@ -421,9 +422,12 @@ function renderHome(){
     home.innerHTML=`<div class="user-gate-title">Bienvenido a BET300 👋</div>
       <div class="welcome-txt">Para cargar, retirar o pedir soporte, ingresá tu usuario de plataforma.</div>
       <label style="margin-top:16px">Usuario de plataforma</label>
-      <input id="usuarioInicial" placeholder="Ej: usuario123" autocomplete="username" onkeydown="if(event.key==='Enter')guardarUsuarioInicial()">
-      <button class="action-btn" onclick="guardarUsuarioInicial()">Continuar</button>
-      <div class="flow-note">Este usuario queda recordado en este dispositivo.</div>`;
+      <input id="usuarioInicial" placeholder="Ej: usuario123" autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('telefonoInicial').focus()">
+      <label style="margin-top:12px">Teléfono (WhatsApp, con código de área)</label>
+      <input id="telefonoInicial" placeholder="Ej: 11 2345 6789" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter')guardarUsuarioInicial()">
+      <button class="action-btn" id="gateBtn" onclick="guardarUsuarioInicial()">Continuar</button>
+      <div id="gateError" style="display:none;margin-top:12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:12px;padding:10px;font-size:13px;font-weight:700;line-height:1.4"></div>
+      <div class="flow-note">Tu usuario y teléfono quedan vinculados, para tu seguridad.</div>`;
     return;
   }
   const pend=tieneSolicitudPendiente();
@@ -447,20 +451,46 @@ function renderHome(){
   updateUnreadUI();
 }
 
+function _gateError(msg){
+  const e=$("gateError");
+  if(e){ e.textContent=msg; e.style.display="block"; }
+  else toast(msg);
+}
 async function guardarUsuarioInicial(){
-  const input=$("usuarioInicial");
-  const usuario=String(input?.value||"").trim();
-  if(!usuario)return toast("Indicá tu usuario de plataforma");
+  const usuario=String($("usuarioInicial")?.value||"").trim();
+  const telefono=String($("telefonoInicial")?.value||"").trim();
+  const err=$("gateError"); if(err)err.style.display="none";
+  if(!usuario)return _gateError("Indicá tu usuario de plataforma.");
+  if(!telefono || telefono.replace(/\D/g,"").length<6)return _gateError("Indicá tu teléfono con código de área (sin 0 ni 15).");
+
+  const btn=$("gateBtn"); if(btn){btn.disabled=true;btn.textContent="Verificando...";}
+  let d={};
+  try{
+    const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo||"P1",p_usuario:usuario,p_telefono:telefono});
+    d=normalize(r.data)||r.data||{};
+    if(r.error){ console.warn("[vinculo]",r.error); d={verdict:"ERROR"}; } // fail-open: no frenar por error transitorio
+  }catch(e){ console.warn("[vinculo]",e); d={verdict:"ERROR"}; }
+  if(btn){btn.disabled=false;btn.textContent="Continuar";}
+
+  const verdict=d.verdict||"";
+  // Conflicto o bloqueo → NO deja entrar
+  if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){
+    return _gateError("⚠️ "+(d.mensaje||"No pudimos validar tus datos. Contactá a soporte."));
+  }
+  if(verdict==="SIN_USUARIO"||verdict==="TEL_INVALIDO"){
+    return _gateError(d.mensaje||"Revisá tu usuario y teléfono.");
+  }
+
+  // ACCESO / NUEVO / ERROR(fail-open) → entra
   state.usuario=usuario;
+  state.telefono=telefono;
   localStorage.setItem("bet300_usuario",usuario);
+  localStorage.setItem("bet300_telefono",telefono);
+  if(d.estado)localStorage.setItem("bet300_vinculo_estado",d.estado);
   renderHome();
   setTimeout(()=>subscribePush(),1500);
   iniciarValidacionUsuarioBackground(usuario);
-  // Feedback de validación: avisar si el usuario no existe en la plataforma
-  setTimeout(()=>{
-    const est=localStorage.getItem("bet300_validacion_estado");
-    if(est==="NO_EXISTE")toast("⚠️ No encontramos ese usuario. Verificá el nombre antes de cargar o retirar.");
-  },9000);
+  if(verdict==="ACCESO")toast("✅ "+(d.mensaje||"Acceso verificado."));
 }
 
 function cambiarUsuario(){
@@ -479,8 +509,8 @@ function cambiarUsuario(){
 
 function _confirmarCambioUsuario(){
   stopChatPoll();stopEstadoPoll();stopPortalThreadPoll();
-  ["bet300_usuario","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
-  Object.assign(state,{usuario:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),composerImage:null,unread:0,chatGreeted:false});
+  ["bet300_usuario","bet300_telefono","bet300_vinculo_estado","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
+  Object.assign(state,{usuario:"",telefono:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),composerImage:null,unread:0,chatGreeted:false});
   clearComposerImage();
   $("messages").innerHTML="";
   goHome();
