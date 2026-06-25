@@ -298,10 +298,11 @@ const PLATFORM_URL = "https://bet-300.pw";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
 const state={
-  publicCode:new URLSearchParams(location.search).get("r")||DEFAULT_ROUTE,
+  publicCode:(new URLSearchParams(location.search).get("r")||"").trim() || localStorage.getItem("bet300_public_code") || "",
   pcCodigo:null,
   usuario:localStorage.getItem("bet300_usuario")||"",
   telefono:localStorage.getItem("bet300_telefono")||"",
+  nivelAcceso:localStorage.getItem("bet300_nivel_acceso")||"",
   solicitudId:localStorage.getItem("bet300_solicitud_id")||"",
   chatId:localStorage.getItem("bet300_chat_id")||"",
   chatToken:localStorage.getItem("bet300_chat_token")||"",
@@ -367,9 +368,10 @@ function showScreen(name){
   else state.chatLibre=false;
 }
 function goHome(){renderHome();showScreen("home");}
-function goCarga(){if(bloquearNuevaSolicitud("CARGA"))return;showScreen("carga");renderCarga();}
-function goRetiro(){if(bloquearNuevaSolicitud("RETIRO"))return;showScreen("retiro");renderRetiro();}
-function goClave(){showScreen("clave");renderClave();}
+function _bloqueoSoporte(){ if((state.nivelAcceso||"")==="SOPORTE"){ toast("Validá tu usuario + teléfono para operar. Mientras tanto, escribinos por chat."); goHome(); return true; } return false; }
+function goCarga(){if(_bloqueoSoporte())return;if(bloquearNuevaSolicitud("CARGA"))return;showScreen("carga");renderCarga();}
+function goRetiro(){if(_bloqueoSoporte())return;if(bloquearNuevaSolicitud("RETIRO"))return;showScreen("retiro");renderRetiro();}
+function goClave(){if(_bloqueoSoporte())return;showScreen("clave");renderClave();}
 function goEstado(){showScreen("estado");renderEstado();}
 function goChat(){showScreen("chat");renderChat();}
 
@@ -513,9 +515,15 @@ function renderHome(){
     return;
   }
   const pend=tieneSolicitudPendiente();
+  const nivel = state.nivelAcceso || "PENDIENTE";
+  const soporte = (nivel === "SOPORTE");
+  const semIcon = nivel==="OK"?"🟢":soporte?"🔴":"🟡";
+  const semTxt  = nivel==="OK"?"Verificado":soporte?"Sin validar":"Pendiente de verificación";
+  const semCol  = nivel==="OK"?"#22c55e":soporte?"#ef4444":"#fbbf24";
   home.innerHTML=`
     <div class="greet">
-      <div><div class="greet-hi">Hola de nuevo</div><div class="greet-user">👤 ${esc(state.usuario)}</div></div>
+      <div><div class="greet-hi">Hola de nuevo</div><div class="greet-user">👤 ${esc(state.usuario)}</div>
+        <div style="font-size:12px;margin-top:3px;color:${semCol};font-weight:700">${semIcon} ${semTxt}</div></div>
       <button class="link-btn" onclick="cambiarUsuario()">Cambiar</button>
     </div>
     ${pend?`<div class="pending-banner" onclick="goEstado()">
@@ -523,6 +531,15 @@ function renderHome(){
       <div><div class="pending-title"><span class="live-dot"></span>${esc(tipoLabel())} en revisión</div>
       <div class="pending-text">${esc(tiempoEspera()||"En proceso")} · tocá para ver el estado</div></div>
       <span class="chev">›</span></div>`:""}
+    ${soporte?`
+      <div class="pending-banner" style="background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.28);cursor:default">
+        <div class="pb-ico">🔴</div>
+        <div><div class="pending-title">No pudimos validar tus datos</div>
+        <div class="pending-text">Para cargar o retirar necesitás validar usuario + teléfono. Reintentá o escribinos por chat.</div></div>
+      </div>
+      <button class="action-btn" id="revalBtn" onclick="reintentarValidacion()" style="margin-top:12px">🔄 Reintentar validación</button>
+      <div class="flow-note" style="margin-top:14px">💬 El <b>Chat de soporte</b> está disponible en la barra de abajo.</div>`
+    :`
     <div class="section-label">¿Qué necesitás hacer?</div>
     <button class="big-btn gold" ${pend?"disabled":""} onclick="goCarga()">
       <span class="bb-ico">💳</span><span class="bb-tx">Cargar saldo<small>Avisá tu transferencia y te acreditamos</small></span><span class="bb-arrow">›</span>
@@ -531,8 +548,23 @@ function renderHome(){
       <span class="bb-ico">🏧</span><span class="bb-tx">Retirar<small>Pedí tu retiro a revisión</small></span><span class="bb-arrow">›</span>
     </button>
     <button class="row-btn" onclick="goClave()"><span class="rb-ico">🔑</span> Reiniciar clave de juego <span class="rb-arrow">›</span></button>
-    <div class="flow-note" style="margin-top:14px">💬 ¿Dudas? Tenés <b>Chat</b> y <b>Estado</b> siempre a mano en la barra de abajo.</div>`;
+    <div class="flow-note" style="margin-top:14px">💬 ¿Dudas? Tenés <b>Chat</b> y <b>Estado</b> siempre a mano en la barra de abajo.</div>`}`;
   updateUnreadUI();
+}
+async function reintentarValidacion(){
+  if(!state.usuario||!state.telefono){ state.usuario=""; renderHome(); return; }
+  const b=$("revalBtn"); if(b){b.disabled=true;b.textContent="Validando...";}
+  try{
+    const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
+    const d=normalize(r.data)||r.data||{};
+    const verdict=d.verdict||"";
+    if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){ toast("⚠️ "+(d.mensaje||"Contactá a soporte.")); return; }
+    const nivel=(verdict==="ACCESO")?"OK":(verdict==="ERROR")?"SOPORTE":"PENDIENTE";
+    state.nivelAcceso=nivel; localStorage.setItem("bet300_nivel_acceso",nivel);
+    renderHome();
+    toast(nivel==="OK"?"✅ Validado":nivel==="SOPORTE"?"Seguimos sin poder validar. Escribinos por chat.":"Listo, ya podés operar.");
+  }catch(e){ toast("No pudimos validar ahora. Probá de nuevo en un momento."); }
+  finally{ const bb=$("revalBtn"); if(bb){bb.disabled=false;bb.textContent="🔄 Reintentar validación";} }
 }
 
 function _gateError(msg){
@@ -546,17 +578,19 @@ async function guardarUsuarioInicial(){
   const err=$("gateError"); if(err)err.style.display="none";
   if(!usuario)return _gateError("Indicá tu usuario de plataforma.");
   if(!telefono || telefono.replace(/\D/g,"").length<6)return _gateError("Indicá tu teléfono con código de área (sin 0 ni 15).");
+  if(!state.pcCodigo)return _gateError("No identificamos tu oficina. Abrí el enlace de tu oficina o contactá a soporte.");
 
   const btn=$("gateBtn"); if(btn){btn.disabled=true;btn.textContent="Verificando...";}
   let d={};
   try{
-    const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo||"P1",p_usuario:usuario,p_telefono:telefono});
+    const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:usuario,p_telefono:telefono});
     d=normalize(r.data)||r.data||{};
-    if(r.error){ console.warn("[vinculo]",r.error); d={verdict:"ERROR"}; } // fail-open: no frenar por error transitorio
+    if(r.error){ console.warn("[vinculo]",r.error); d={verdict:"ERROR"}; }
   }catch(e){ console.warn("[vinculo]",e); d={verdict:"ERROR"}; }
   if(btn){btn.disabled=false;btn.textContent="Continuar";}
 
   const verdict=d.verdict||"";
+  // CONFLICTO / BLOQUEADO → bloqueado, contacto soporte (no entra)
   if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){
     return _gateError("⚠️ "+(d.mensaje||"No pudimos validar tus datos. Contactá a soporte."));
   }
@@ -564,16 +598,20 @@ async function guardarUsuarioInicial(){
     return _gateError(d.mensaje||"Revisá tu usuario y teléfono.");
   }
 
-  // ACCESO / NUEVO / ERROR(fail-open) → entra
+  // Semáforo de acceso: ACCESO=OK(🟢 full) · NUEVO/PENDIENTE=PENDIENTE(🟡 full) · ERROR=SOPORTE(solo chat, sin carga/retiro)
+  let nivel = (verdict==="ACCESO") ? "OK" : (verdict==="ERROR") ? "SOPORTE" : "PENDIENTE";
   state.usuario=usuario;
   state.telefono=telefono;
+  state.nivelAcceso=nivel;
   localStorage.setItem("bet300_usuario",usuario);
   localStorage.setItem("bet300_telefono",telefono);
+  localStorage.setItem("bet300_nivel_acceso",nivel);
   if(d.estado)localStorage.setItem("bet300_vinculo_estado",d.estado);
   renderHome();
   setTimeout(()=>subscribePush(),1500);
   iniciarValidacionUsuarioBackground(usuario);
-  if(verdict==="ACCESO")toast("✅ "+(d.mensaje||"Acceso verificado."));
+  if(nivel==="OK")toast("✅ "+(d.mensaje||"Acceso verificado."));
+  else if(nivel==="SOPORTE")toast("⚠️ No pudimos validarte ahora. Podés escribir a soporte y reintentar.");
 }
 
 function cambiarUsuario(){
@@ -592,8 +630,8 @@ function cambiarUsuario(){
 
 function _confirmarCambioUsuario(){
   stopChatPoll();stopEstadoPoll();stopPortalThreadPoll();
-  ["bet300_usuario","bet300_telefono","bet300_vinculo_estado","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
-  Object.assign(state,{usuario:"",telefono:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),composerImage:null,unread:0,chatGreeted:false});
+  ["bet300_usuario","bet300_telefono","bet300_vinculo_estado","bet300_nivel_acceso","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
+  Object.assign(state,{usuario:"",telefono:"",nivelAcceso:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),composerImage:null,unread:0,chatGreeted:false});
   clearComposerImage();
   $("messages").innerHTML="";
   goHome();
@@ -783,7 +821,7 @@ async function iniciarValidacionUsuarioBackground(usuario){
   const u=String(usuario||"").trim();
   if(!u)return;
   try{
-    const r=await rpc("landing_validar_usuario_login",{p_usuario:u,p_pc_codigo:state.pcCodigo||"P1"});
+    const r=await rpc("landing_validar_usuario_login",{p_usuario:u,p_pc_codigo:state.pcCodigo});
     if(r.error)return;
     const row=normalize(r.data)||r.data||{};
     const validacionId=row.validacion_id||row.id||null;
@@ -805,9 +843,14 @@ async function iniciarValidacionUsuarioBackground(usuario){
 
 // ── Ruta e inicialización ─────────────────────────────────────────────────
 async function initRoute(){
+  // Ruta de oficina: ?r= (se persiste para la PWA instalada, que abre sin query) → localStorage.
+  const qp=(new URLSearchParams(location.search).get("r")||"").trim();
+  if(qp){ state.publicCode=qp; try{ localStorage.setItem("bet300_public_code", qp); }catch(_e){} }
+  if(!state.publicCode){ state.publicCode = localStorage.getItem("bet300_public_code") || ""; }
+  if(!state.publicCode){ state.pcCodigo=null; console.warn("[BET300] sin ruta de oficina"); return; }
+  // Resolver oficina por ruta (DB-driven). Sin default P1 en producción.
   const r=await rpc("landing_resolver_ruta_publica",{p_public_code:state.publicCode});
   if(!r.error){const row=normalize(r.data);state.pcCodigo=row?.pc_codigo||row?.pc||row?.codigo_pc||null;}
-  if(!state.pcCodigo){const map={"rt-a8f31":"P1","rt-k6d92":"P2","rt-m4q77":"P3","rt-z9p42":"P4","rt-x2v61":"P5"};state.pcCodigo=map[state.publicCode]||"P1";}
   console.log("[BET300 V18] canal",state.pcCodigo,"ruta",state.publicCode);
 }
 
@@ -861,7 +904,7 @@ function inferirTipoBilletera(b){
   return "Billetera";
 }
 async function obtenerBilletera(){
-  const pcs=[state.pcCodigo,"P1"].map(v=>String(v||"").trim().toUpperCase()).filter(Boolean);
+  const pcs=[state.pcCodigo].map(v=>String(v||"").trim().toUpperCase()).filter(Boolean);
   for(const pc of [...new Set(pcs)]){
     const segura=await rpc("landing_obtener_billetera_segura",{
       p_validacion_usuario_id:Number(localStorage.getItem("bet300_validacion_id")||0),
@@ -1094,7 +1137,7 @@ async function enviarMensajeSoporte(txt,imagenUrl=null){
 
   if(!res||res.error){
     const bp=billeteraPayloadPlano();
-    const payload={usuario:state.usuario,telefono:state.telefono||"",pc_codigo:state.pcCodigo||"P1",public_code:state.publicCode,tipo:"SOPORTE",...bp,...(imagenUrl?{imagen_url:imagenUrl}:{})};
+    const payload={usuario:state.usuario,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"SOPORTE",...bp,...(imagenUrl?{imagen_url:imagenUrl}:{})};
     res=await rpc("landing_portal_v16_crear_solicitud",{
       p_public_code:state.publicCode,p_usuario:state.usuario,
       p_tipo:"SOPORTE",p_monto:0,p_titular:"",p_destino:null,
@@ -1150,7 +1193,7 @@ async function subscribePush(){
     }
     await fetch("/api/save-subscription",{
       method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({usuario:state.usuario,pc_codigo:state.pcCodigo||"P1",subscription:sub.toJSON()})
+      body:JSON.stringify({usuario:state.usuario,pc_codigo:state.pcCodigo,subscription:sub.toJSON()})
     });
   }catch(e){console.warn("[BET300 push]",e);}
 }
