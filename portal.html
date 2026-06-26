@@ -843,12 +843,26 @@ async function iniciarValidacionUsuarioBackground(usuario){
 
 // ── Ruta e inicialización ─────────────────────────────────────────────────
 async function initRoute(){
-  // Ruta de oficina: ?r= (se persiste para la PWA instalada, que abre sin query) → localStorage.
+  // 1) ?r= explícito (compatibilidad vieja / override) → se persiste para la PWA.
   const qp=(new URLSearchParams(location.search).get("r")||"").trim();
   if(qp){ state.publicCode=qp; try{ localStorage.setItem("bet300_public_code", qp); }catch(_e){} }
+  // 2) Por subdominio/host (modo producción) si no vino ?r=.
+  if(!qp){
+    try{
+      const rh=await rpc("landing_resolver_ruta_por_host",{p_host:location.host});
+      const dh=normalize(rh.data)||rh.data||{};
+      if(dh && dh.ok && (dh.pc_codigo||dh.public_code)){
+        state.pcCodigo=dh.pc_codigo||null;
+        if(dh.public_code){ state.publicCode=dh.public_code; try{localStorage.setItem("bet300_public_code",dh.public_code);}catch(_e){} }
+        console.log("[BET300] oficina por host",location.host,"->",state.pcCodigo,state.publicCode);
+        if(state.pcCodigo) return;
+      }
+    }catch(_e){}
+  }
+  // 3) Ruta guardada (PWA instalada que abre sin ?r= ni subdominio).
   if(!state.publicCode){ state.publicCode = localStorage.getItem("bet300_public_code") || ""; }
   if(!state.publicCode){ state.pcCodigo=null; console.warn("[BET300] sin ruta de oficina"); return; }
-  // Resolver oficina por ruta (DB-driven). Sin default P1 en producción.
+  // 4) Resolver oficina por public_code (DB-driven). Sin default P1 en producción.
   const r=await rpc("landing_resolver_ruta_publica",{p_public_code:state.publicCode});
   if(!r.error){const row=normalize(r.data);state.pcCodigo=row?.pc_codigo||row?.pc||row?.codigo_pc||null;}
   console.log("[BET300 V18] canal",state.pcCodigo,"ruta",state.publicCode);
