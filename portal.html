@@ -464,7 +464,7 @@ function threadKey(m){
 }
 async function pollPortalThread(){
   if(!state.usuario||!$("widget")?.classList.contains("open"))return;
-  const res=await rpc("landing_portal_chat_thread_get",{p_usuario:state.usuario,p_public_code:state.publicCode});
+  const res=await rpc("landing_portal_chat_thread_get",{p_usuario:state.usuario,p_public_code:state.publicCode,p_telefono:state.telefono||""});
   if(res.error){console.warn("[chat_thread]",res.error);_onPollFail();return;}
   _onPollOk();
   const d=normalize(res.data)||res.data||{};
