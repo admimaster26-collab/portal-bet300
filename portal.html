@@ -578,7 +578,7 @@ async function reintentarValidacion(){
     const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
     const d=normalize(r.data)||r.data||{};
     const verdict=d.verdict||"";
-    if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){ toast("⚠️ "+(d.mensaje||"Contactá a soporte.")); return; }
+    if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"||verdict==="NO_REGISTRADO"){ toast("⚠️ "+(d.mensaje||"Contactá a soporte.")); return; }
     const nivel=(verdict==="ACCESO")?"OK":(verdict==="ERROR")?"SOPORTE":"PENDIENTE";
     state.nivelAcceso=nivel; localStorage.setItem("bet300_nivel_acceso",nivel);
     renderHome();
@@ -610,8 +610,8 @@ async function guardarUsuarioInicial(){
   if(btn){btn.disabled=false;btn.textContent="Continuar";}
 
   const verdict=d.verdict||"";
-  // CONFLICTO / BLOQUEADO → bloqueado, contacto soporte (no entra)
-  if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){
+  // CONFLICTO / BLOQUEADO / NO_REGISTRADO → bloqueado, contacto soporte (no entra)
+  if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"||verdict==="NO_REGISTRADO"){
     return _gateError("⚠️ "+(d.mensaje||"No pudimos validar tus datos. Contactá a soporte."));
   }
   if(verdict==="SIN_USUARIO"||verdict==="TEL_INVALIDO"){
