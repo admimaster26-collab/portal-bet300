@@ -629,6 +629,7 @@ async function guardarUsuarioInicial(){
   if(d.estado)localStorage.setItem("bet300_vinculo_estado",d.estado);
   renderHome();
   setTimeout(()=>subscribePush(),1500);
+  setTimeout(()=>marcarAppInstalada(),1700);
   iniciarValidacionUsuarioBackground(usuario);
   if(nivel==="OK")toast("✅ "+(d.mensaje||"Acceso verificado."));
   else if(nivel==="SOPORTE")toast("⚠️ No pudimos validarte ahora. Podés escribir a soporte y reintentar.");
@@ -1290,6 +1291,19 @@ document.addEventListener("paste",e=>{
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────
+// ── Promo primer ingreso: marcar "app instalada" si corre como PWA instalada ──
+function marcarAppInstalada(){
+  try{
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    if(standalone && state.usuario && state.pcCodigo){
+      rpc("landing_marcar_app_instalada",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario});
+    }
+  }catch(_e){}
+}
+window.addEventListener('appinstalled', function(){
+  try{ if(state.usuario && state.pcCodigo) rpc("landing_marcar_app_instalada",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario}); }catch(_e){}
+});
+
 window.addEventListener("load",async()=>{
   if("serviceWorker" in navigator){
     navigator.serviceWorker.register("/sw.js").catch(e=>console.warn("[SW]",e));
@@ -1297,6 +1311,7 @@ window.addEventListener("load",async()=>{
   $("appFrame").src=PLATFORM_URL;
   restoreLauncherMini();
   await initRoute();
+  setTimeout(marcarAppInstalada, 2500);
   renderHome();
   showScreen("home");
   if(tieneSolicitudPendiente()){
