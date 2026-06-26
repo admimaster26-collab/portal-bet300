@@ -49,6 +49,10 @@ button,input,textarea{font-family:var(--font)}
 .launcher .fb-ico{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:9px;background:rgba(233,194,92,.14);border:1px solid rgba(233,194,92,.3);font-size:17px}
 .launcher .fb-sub{display:block;font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.3px;text-transform:uppercase;margin-top:0}
 .launcher .float-badge{position:absolute;top:-6px;right:-6px;min-width:22px;height:22px;border-radius:999px;background:var(--danger);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid var(--bg)}
+.launcher.mini{width:54px;padding:0;justify-content:center}
+.launcher.mini .fb-text{display:none}
+.launcher-min{position:fixed;right:13px;bottom:calc(120px + var(--safe-b));z-index:21;width:26px;height:26px;border-radius:999px;border:1px solid var(--gold-deep);background:#1a1a20;color:var(--gold-2);font-size:17px;font-weight:900;line-height:22px;text-align:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5);padding:0}
+.launcher-min:active{transform:scale(.92)}
 
 /* ── Scrim (solo desktop) ───────────────────────────────────────────────── */
 .scrim{position:fixed;inset:0;z-index:25;background:rgba(3,3,6,.6);opacity:0;pointer-events:none;transition:opacity .26s}
@@ -244,6 +248,7 @@ textarea{resize:vertical;min-height:76px}
   <span class="fb-text">Cajero<span class="fb-sub">Cargas · Retiros · Ayuda</span></span>
   <span id="floatUnread" class="float-badge hidden">0</span>
 </button>
+<button id="floatMin" class="launcher-min" onclick="toggleLauncherMini(event)" aria-label="Minimizar o restaurar el cajero" title="Minimizar / restaurar">–</button>
 
 <div id="scrim" class="scrim" onclick="toggleWidget(false)"></div>
 
@@ -384,6 +389,21 @@ function bumpUnread(){state.unread++;updateUnreadUI();}
 function clearUnread(){state.unread=0;updateUnreadUI();}
 
 // ── Apertura / cierre del panel ─────────────────────────────────────────────
+function toggleLauncherMini(e){
+  if(e){ try{ e.stopPropagation(); e.preventDefault(); }catch(_e){} }
+  const l=$("floatBtn"); if(!l) return;
+  const mini=l.classList.toggle("mini");
+  const m=$("floatMin"); if(m){ m.textContent = mini ? "+" : "–"; m.title = mini ? "Restaurar cajero" : "Minimizar cajero"; }
+  try{ localStorage.setItem("bet300_launcher_mini", mini?"1":"0"); }catch(_e){}
+}
+function restoreLauncherMini(){
+  try{
+    if(localStorage.getItem("bet300_launcher_mini")==="1"){
+      const l=$("floatBtn"); if(l) l.classList.add("mini");
+      const m=$("floatMin"); if(m){ m.textContent="+"; m.title="Restaurar cajero"; }
+    }
+  }catch(_e){}
+}
 function toggleWidget(open){
   const w=$("widget"),scrim=$("scrim");
   w.classList.toggle("open",!!open);
@@ -1275,6 +1295,7 @@ window.addEventListener("load",async()=>{
     navigator.serviceWorker.register("/sw.js").catch(e=>console.warn("[SW]",e));
   }
   $("appFrame").src=PLATFORM_URL;
+  restoreLauncherMini();
   await initRoute();
   renderHome();
   showScreen("home");
