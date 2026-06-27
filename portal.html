@@ -996,6 +996,24 @@ function showOperatorBubble(texto, imgUrl){
   el.style.display="block";
 }
 function hideOperatorBubble(){ const el=document.getElementById("opBubble"); if(el) el.style.display="none"; }
+// ── Bono de bienvenida (SOLO preparación visual; NO acredita nada — lo valida el operador) ──
+// Estado client-side: si la app está instalada (standalone) y si las notificaciones están aceptadas.
+// Persistencia/estado real por usuario+tel+oficina → backend pendiente: landing_estado_bono_bienvenida (TODO).
+function bonoBienvenidaEstado(){
+  let app=false, push=false;
+  try{ app=(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true; }catch(_e){}
+  try{ push=(typeof Notification!=="undefined" && Notification.permission==="granted"); }catch(_e){}
+  return {app, push};
+}
+function renderBonoBienvenidaCard(){
+  const e=bonoBienvenidaEstado();
+  const chip=(ok)=> ok?'<span style="color:#22c55e;font-weight:800">Sí ✅</span>':'<span style="color:#fbbf24;font-weight:800">Todavía no ⏳</span>';
+  return `<div class="form-card" style="margin-top:12px;border:1px solid rgba(124,196,255,.25)">
+    <div style="font-weight:900;font-size:15px;margin-bottom:3px">🎁 Bono de bienvenida</div>
+    <div class="screen-desc" style="margin:0 0 8px">Instalá la app y aceptá notificaciones para participar. Lo activa un operador.</div>
+    <div style="font-size:13px;line-height:1.8">📱 App instalada: ${chip(e.app)}<br>🔔 Notificaciones: ${chip(e.push)}<br>Estado: <b>pendiente de validación manual</b></div>
+  </div>`;
+}
 
 async function subirImagen(file){
   if(!sb||!file)return null;
@@ -1094,7 +1112,8 @@ function renderCarga(){
       <input id="cargaTitular" placeholder="Ej: Maria Lopez" autocomplete="name">
       <button id="btnEnviarCarga" class="action-btn" onclick="enviarSolicitudCargaDirecta()">Ya transferí · Enviar solicitud</button>
       <button class="action-btn secondary-btn" style="margin-top:9px" onclick="goChat()">Necesito ayuda</button>
-    </div>`;
+    </div>
+    ${renderBonoBienvenidaCard()}`;
   cargarBilleteraEnSlot();
 }
 function setMonto(v){const i=$("cargaMonto");if(i){i.value=v;haptic(6);syncChips();}}
