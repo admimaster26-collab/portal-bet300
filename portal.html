@@ -308,6 +308,7 @@ const state={
   usuario:localStorage.getItem("bet300_usuario")||"",
   telefono:localStorage.getItem("bet300_telefono")||"",
   nivelAcceso:localStorage.getItem("bet300_nivel_acceso")||"",
+  motivoSoporte:localStorage.getItem("bet300_motivo_soporte")||"",
   solicitudId:localStorage.getItem("bet300_solicitud_id")||"",
   chatId:localStorage.getItem("bet300_chat_id")||"",
   chatToken:localStorage.getItem("bet300_chat_token")||"",
@@ -554,8 +555,8 @@ function renderHome(){
     ${soporte?`
       <div class="pending-banner" style="background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.28);cursor:default">
         <div class="pb-ico">🔴</div>
-        <div><div class="pending-title">No pudimos validar tus datos</div>
-        <div class="pending-text">Para cargar o retirar necesitás validar usuario + teléfono. Reintentá o escribinos por chat.</div></div>
+        <div><div class="pending-title">${esc(state.motivoSoporte?"Activación pendiente":"No pudimos validar tus datos")}</div>
+        <div class="pending-text">${esc(state.motivoSoporte||"Para cargar o retirar necesitás validar usuario + teléfono. Reintentá o escribinos por chat.")}</div></div>
       </div>
       <button class="action-btn" id="revalBtn" onclick="reintentarValidacion()" style="margin-top:12px">🔄 Reintentar validación</button>
       <div class="flow-note" style="margin-top:14px">💬 El <b>Chat de soporte</b> está disponible en la barra de abajo.</div>`
@@ -578,8 +579,10 @@ async function reintentarValidacion(){
     const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
     const d=normalize(r.data)||r.data||{};
     const verdict=d.verdict||"";
-    if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"||verdict==="NO_REGISTRADO"){ toast("⚠️ "+(d.mensaje||"Contactá a soporte.")); return; }
-    const nivel=(verdict==="ACCESO")?"OK":(verdict==="ERROR")?"SOPORTE":"PENDIENTE";
+    if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){ toast("⚠️ "+(d.mensaje||"Contactá a soporte.")); return; }
+    state.motivoSoporte = (verdict==="NO_REGISTRADO") ? (d.mensaje||state.motivoSoporte||"") : "";
+    if(state.motivoSoporte) localStorage.setItem("bet300_motivo_soporte",state.motivoSoporte); else localStorage.removeItem("bet300_motivo_soporte");
+    const nivel=(verdict==="ACCESO")?"OK":(verdict==="ERROR"||verdict==="NO_REGISTRADO")?"SOPORTE":"PENDIENTE";
     state.nivelAcceso=nivel; localStorage.setItem("bet300_nivel_acceso",nivel);
     renderHome();
     toast(nivel==="OK"?"✅ Validado":nivel==="SOPORTE"?"Seguimos sin poder validar. Escribinos por chat.":"Listo, ya podés operar.");
@@ -610,22 +613,27 @@ async function guardarUsuarioInicial(){
   if(btn){btn.disabled=false;btn.textContent="Continuar";}
 
   const verdict=d.verdict||"";
-  // CONFLICTO / BLOQUEADO / NO_REGISTRADO → bloqueado, contacto soporte (no entra)
-  if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"||verdict==="NO_REGISTRADO"){
+  // CONFLICTO / BLOQUEADO → quedate en el gate (corregí los datos o contactá soporte)
+  if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){
     return _gateError("⚠️ "+(d.mensaje||"No pudimos validar tus datos. Contactá a soporte."));
   }
   if(verdict==="SIN_USUARIO"||verdict==="TEL_INVALIDO"){
     return _gateError(d.mensaje||"Revisá tu usuario y teléfono.");
   }
+  // NO_REGISTRADO (oficina con base, usuario nuevo) → entra en modo SOPORTE para pedir activación por chat
+  state.motivoSoporte = (verdict==="NO_REGISTRADO")
+    ? (d.mensaje||"Tu usuario todavía no está activado. Escribinos por el chat y te activamos para operar.")
+    : "";
 
-  // Semáforo de acceso: ACCESO=OK(🟢 full) · NUEVO/PENDIENTE=PENDIENTE(🟡 full) · ERROR=SOPORTE(solo chat, sin carga/retiro)
-  let nivel = (verdict==="ACCESO") ? "OK" : (verdict==="ERROR") ? "SOPORTE" : "PENDIENTE";
+  // Semáforo de acceso: ACCESO=OK(🟢 full) · NUEVO/PENDIENTE=PENDIENTE(🟡 full) · ERROR/NO_REGISTRADO=SOPORTE(solo chat)
+  let nivel = (verdict==="ACCESO") ? "OK" : (verdict==="ERROR"||verdict==="NO_REGISTRADO") ? "SOPORTE" : "PENDIENTE";
   state.usuario=usuario;
   state.telefono=telefono;
   state.nivelAcceso=nivel;
   localStorage.setItem("bet300_usuario",usuario);
   localStorage.setItem("bet300_telefono",telefono);
   localStorage.setItem("bet300_nivel_acceso",nivel);
+  if(state.motivoSoporte) localStorage.setItem("bet300_motivo_soporte",state.motivoSoporte); else localStorage.removeItem("bet300_motivo_soporte");
   if(d.estado)localStorage.setItem("bet300_vinculo_estado",d.estado);
   renderHome();
   setTimeout(()=>subscribePush(),1500);
@@ -651,8 +659,8 @@ function cambiarUsuario(){
 
 function _confirmarCambioUsuario(){
   stopChatPoll();stopEstadoPoll();stopPortalThreadPoll();
-  ["bet300_usuario","bet300_telefono","bet300_vinculo_estado","bet300_nivel_acceso","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
-  Object.assign(state,{usuario:"",telefono:"",nivelAcceso:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),composerImage:null,unread:0,chatGreeted:false});
+  ["bet300_usuario","bet300_telefono","bet300_vinculo_estado","bet300_nivel_acceso","bet300_motivo_soporte","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
+  Object.assign(state,{usuario:"",telefono:"",nivelAcceso:"",motivoSoporte:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),composerImage:null,unread:0,chatGreeted:false});
   clearComposerImage();
   $("messages").innerHTML="";
   goHome();
