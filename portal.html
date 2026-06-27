@@ -298,7 +298,7 @@ textarea{resize:vertical;min-height:76px}
 <script>
 const SUPABASE_URL = "https://pjvvyvfcwjoocjqvdror.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_NYqRoKptTgcL90VAVF2kqA_Gl06mEUF";
-const DEFAULT_ROUTE = "rt-a8f31";
+const DEFAULT_ROUTE = "rt-a8f31"; // Solo compatibilidad/dev — NO usar como fallback en producción (hoy NO se referencia en ningún lado).
 const PLATFORM_URL = "https://bet-300.pw";
 let sb=null;try{if(SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("PEGAR_"))sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY)}catch(e){console.warn(e)}
 
