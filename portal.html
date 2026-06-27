@@ -280,7 +280,7 @@ textarea{resize:vertical;min-height:76px}
 
   <div id="composeBox" class="widget-compose hidden">
     <button class="clip-btn" onclick="$('composeFileInput').click()" title="Adjuntar imagen">📎</button>
-    <input id="composeFileInput" type="file" accept="image/*" style="display:none" onchange="queueComposerFile(this)">
+    <input id="composeFileInput" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="queueComposerFile(this)">
     <textarea id="freeInput" rows="1" placeholder="Escribí tu mensaje..."></textarea>
     <button class="send-btn" onclick="sendFreeMessage()">➤</button>
   </div>
@@ -920,10 +920,14 @@ async function initRoute(){
 async function subirImagen(file){
   if(!sb||!file)return null;
   if(file.size>5*1024*1024){toast("El archivo supera 5 MB");return null;}
-  const ext=(file.name.split(".").pop()||"jpg").toLowerCase().replace(/[^a-z0-9]/g,"jpg");
+  // Solo imágenes seguras (nada de svg/html). La extensión sale del TIPO, no del nombre.
+  const TIPOS_OK={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
+  const mime=String(file.type||"").toLowerCase();
+  if(!TIPOS_OK[mime]){ toast("Solo se aceptan imágenes JPG, PNG o WEBP."); return null; }
+  const ext=TIPOS_OK[mime];
   const path=`${(state.usuario||"anonimo").replace(/[^a-z0-9_-]/gi,"_")}/${Date.now()}_${Math.random().toString(36).slice(2,6)}.${ext}`;
   try{
-    const{data:upData,error}=await sb.storage.from("comprobantes").upload(path,file,{cacheControl:"3600",upsert:true,contentType:file.type});
+    const{data:upData,error}=await sb.storage.from("comprobantes").upload(path,file,{cacheControl:"3600",upsert:false,contentType:mime});
     if(error){console.error("[img upload error]",error.message||error);toast("No se pudo subir la imagen");return null;}
     const{data:urlData}=sb.storage.from("comprobantes").getPublicUrl(path);
     const url=urlData?.publicUrl||null;
@@ -1070,6 +1074,10 @@ async function enviarSolicitudCarga(usuario,monto,titular){
   const payload={usuario,monto:Number(monto),titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CARGA",...bp};
   const destino=bp.billetera_nombre?`${bp.billetera_nombre}${bp.billetera_alias?" · "+bp.billetera_alias:""}`:null;
   let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_destino:destino,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_metadata:payload});
+  // Rechazo por validación de vínculo → NO usar fallback (sería un bypass). Mandamos a soporte.
+  if(res.error && /VINCULO_NO_VALIDO|NO_AUTORIZADO|NO_REGISTRADO|CONFLICTO|BLOQUEADO/i.test(res.error.message||"")){
+    toast("⚠️ Tu usuario no está habilitado para operar. Validate o escribinos por soporte."); goChat(); return;
+  }
   if(res.error){console.warn("[V18]",res.error);res=await rpc("landing_crear_solicitud_v3_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_comprobante_url:null,p_extra:payload});}
   if(res.error){res=await rpc("landing_crear_chat_v2_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_tipo:"CARGA",p_extra:payload});}
   if(res.error){toast("No pudimos enviar la solicitud. Probá por el chat.");goChat();return;}
@@ -1120,6 +1128,9 @@ async function enviarSolicitudRetiro(){
     p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"RETIRO",
     p_monto:monto,p_titular:titular,p_destino:destino,p_mensaje:msg,p_metadata:payload
   });
+  if(res.error && /VINCULO_NO_VALIDO|NO_AUTORIZADO|NO_REGISTRADO|CONFLICTO|BLOQUEADO/i.test(res.error.message||"")){
+    toast("⚠️ Tu usuario no está habilitado para operar. Validate o escribinos por soporte."); goChat(); return;
+  }
   if(res.error){
     console.warn("[V18] retiro v16 falló",res.error);
     res=await rpc("landing_crear_solicitud_v3_blindado",{
@@ -1255,7 +1266,7 @@ async function subscribePush(){
     }
     await fetch("/api/save-subscription",{
       method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({usuario:state.usuario,pc_codigo:state.pcCodigo,subscription:sub.toJSON()})
+      body:JSON.stringify({usuario:state.usuario,public_code:state.publicCode,telefono:state.telefono||"",subscription:sub.toJSON()})
     });
   }catch(e){console.warn("[BET300 push]",e);}
 }
