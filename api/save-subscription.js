@@ -49,9 +49,16 @@ module.exports = async function handler(req, res) {
     }
   } catch (e) { /* error transitorio de validación: no bloqueamos el push */ }
 
-  const endpoint = typeof subscription === 'string'
-    ? JSON.parse(subscription).endpoint
-    : subscription.endpoint;
+  let endpoint;
+  try {
+    const subObj = typeof subscription === 'string' ? JSON.parse(subscription) : subscription;
+    endpoint = subObj && subObj.endpoint;
+  } catch (e) {
+    return res.status(400).json({ error: 'subscription_invalida' });
+  }
+  if (!endpoint || typeof endpoint !== 'string') {
+    return res.status(400).json({ error: 'subscription_sin_endpoint' });
+  }
 
   const { error } = await sb.from('push_subscriptions').upsert({
     usuario:      user,

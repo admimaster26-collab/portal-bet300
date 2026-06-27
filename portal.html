@@ -379,7 +379,7 @@ function goCarga(){if(_bloqueoSoporte())return;if(bloquearNuevaSolicitud("CARGA"
 function goRetiro(){if(_bloqueoSoporte())return;if(bloquearNuevaSolicitud("RETIRO"))return;showScreen("retiro");renderRetiro();}
 function goClave(){if(_bloqueoSoporte())return;showScreen("clave");renderClave();}
 function goEstado(){showScreen("estado");renderEstado();}
-function goChat(){showScreen("chat");renderChat();}
+function goChat(){ try{hideOperatorBubble();}catch(_e){} showScreen("chat");renderChat();}
 
 // ── No leídos ──────────────────────────────────────────────────────────────
 function updateUnreadUI(){
@@ -429,12 +429,15 @@ function addMsg(text,who="bot",imgUrl=null){
   const wrap=document.createElement("div");
   wrap.className="msg "+(who==="user"?"user":"bot");
   const imgHtml=imgUrl?`<img class="chat-img" src="${esc(imgUrl)}" onclick="window.open('${esc(imgUrl)}','_blank')" onerror="this.style.display='none'" alt="imagen">`:""
-  wrap.innerHTML='<div class="bubble">'+String(text)+imgHtml+'</div><div class="meta">'+(who==="user"?"Vos":"BET300")+" · "+now()+'</div>';
+  let cuerpo=String(text);
+  if(who!=="user"){ const card=parseTransferCard(text); if(card) cuerpo=renderTransferCardHtml(card); }   // tarjeta solo en bot/sistema
+  wrap.innerHTML='<div class="bubble">'+cuerpo+imgHtml+'</div><div class="meta">'+(who==="user"?"Vos":"BET300")+" · "+now()+'</div>';
   $("messages").appendChild(wrap);scrollChat();
 }
 function incomingOperatorMsg(texto,imgUrl){
   addMsg(escMsg(texto),"bot",imgUrl||null);
-  if(state.screen!=="chat"||!$("widget")?.classList.contains("open"))bumpUnread();
+  const fueraDelChat = state.screen!=="chat" || !$("widget")?.classList.contains("open");
+  if(fueraDelChat){ bumpUnread(); try{ showOperatorBubble(texto,imgUrl); }catch(_e){} }
 }
 function renderChat(){
   if(!state.chatGreeted&&!$("messages").children.length){
@@ -917,22 +920,102 @@ async function initRoute(){
 }
 
 // ── Image upload (comprobantes + chat) ───────────────────────────────────
+// ── Producción: compresión de imágenes ──────────────────────────────────────
+async function comprimirImagenPortal(file, opts={}){
+  const TIPOS=["image/jpeg","image/png","image/webp"];
+  if(!file || !TIPOS.includes(String(file.type||"").toLowerCase())) return null;
+  if(file.size > 5*1024*1024) return null;
+  const maxLado = opts.maxLado || 1280, calidad = opts.calidad || 0.72;
+  try{
+    let w,h,src,bitmap=null;
+    bitmap = await createImageBitmap(file).catch(()=>null);
+    if(bitmap){ w=bitmap.width; h=bitmap.height; src=bitmap; }
+    else{
+      src = await new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=rej; img.src=URL.createObjectURL(file); });
+      w=src.naturalWidth; h=src.naturalHeight;
+    }
+    if(!w||!h) return null;
+    let nw=w, nh=h;
+    if(Math.max(w,h) > maxLado){ const r=maxLado/Math.max(w,h); nw=Math.round(w*r); nh=Math.round(h*r); }
+    const canvas=document.createElement("canvas"); canvas.width=nw; canvas.height=nh;
+    canvas.getContext("2d").drawImage(src,0,0,nw,nh);
+    try{ if(bitmap&&bitmap.close) bitmap.close(); }catch(_e){}
+    return await new Promise(res=>canvas.toBlob(res,"image/jpeg",calidad));
+  }catch(_e){ return null; }
+}
+// ── Producción: firma de billetera (antiparpadeo) ──
+function billeteraSignature(b){
+  b=b||{};
+  return [b.id||b.billetera_id||"", b.alias||"", b.cbu||b.cvu||"", b.titular||"", b.nombre_visible||b.nombre||"", b.banco||""].join("|");
+}
+// ── Producción: guard de operación (anti-bypass desde consola) ──
+function _puedeOperar(){
+  if(state.nivelAcceso==="SOPORTE"){ toast("Validá tus datos para operar. Escribinos por soporte."); try{goChat();}catch(_e){} return false; }
+  if(!state.pcCodigo){ toast("No identificamos tu oficina. Abrí el enlace de tu oficina o contactá a soporte."); return false; }
+  if(tieneSolicitudPendiente()){ toast("Ya tenés una solicitud en revisión."); try{goEstado();}catch(_e){} return false; }
+  return true;
+}
+// ── Producción: tarjeta de transferencia en el chat ──
+function parseTransferCard(text){
+  const t=String(text||"");
+  const m=t.match(/::TRANSFER_CARD::\s*(\{[\s\S]*\})/);
+  if(m){ try{ const d=JSON.parse(m[1].replace(/&quot;/g,'"').replace(/&amp;/g,'&')); if(d&&(d.alias||d.cbu||d.cvu)) return d; }catch(_e){} }
+  const unesc=(s)=>String(s||"").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#0?39;/g,"'").trim();
+  const grab=(re)=>{ const mm=t.match(re); return mm?unesc(mm[1].replace(/<[^>]*>/g,"")):""; };
+  const alias=grab(/alias\s*[:：]\s*([^\n<]+)/i);
+  const cbucvu=grab(/cbu\s*\/\s*cvu\s*[:：]\s*([0-9\s.\-]+)/i);
+  const cbu=grab(/(?:^|\s)cbu\s*[:：]\s*([0-9\s.\-]+)/i);
+  const cvu=grab(/(?:^|\s)cvu\s*[:：]\s*([0-9\s.\-]+)/i);
+  const titular=grab(/titular\s*[:：]\s*([^\n<]+)/i);
+  const banco=grab(/banco\s*[:：]\s*([^\n<]+)/i);
+  const tipo=grab(/(?:^|\s)tipo\s*[:：]\s*([^\n<]+)/i);
+  const nombre=grab(/nombre\s*[:：]\s*([^\n<]+)/i);
+  if(alias||cbu||cvu||cbucvu) return {nombre_visible:nombre,titular,alias,cbu:cbu||cbucvu,cvu,banco:banco||tipo};
+  return null;
+}
+function renderTransferCardHtml(d){
+  d=d||{};
+  const cbu=d.cbu||d.cvu||"";
+  const field=(lbl,val,copy)=> val ? ('<div class="transfer-field"><div class="tf-main"><div class="transfer-label">'+esc(lbl)+'</div><div class="transfer-value">'+esc(val)+'</div></div>'+(copy?('<button class="copy-btn" data-lbl="Copiar" onclick="copyText(\''+esc(val)+'\',this)">Copiar</button>'):'')+'</div>') : '';
+  const todo=[d.alias?('Alias: '+d.alias):'',cbu?('CBU/CVU: '+cbu):'',d.titular?('Titular: '+d.titular):'',d.banco?('Banco: '+d.banco):''].filter(Boolean).join(' · ');
+  return '<div class="transfer-card"><div class="transfer-head"><div class="transfer-title">📥 Datos para transferir</div></div>'
+    +field('Alias',d.alias,true)+field('CBU / CVU',cbu,true)+field('Titular',d.titular,false)+field('Banco',d.banco,false)
+    +'<div style="margin-top:8px"><button class="copy-btn" style="width:100%" onclick="copyText(\''+esc(todo)+'\',this)">⧉ Copiar todo</button></div></div>';
+}
+// ── Producción: burbuja flotante de mensaje del operador ──
+function showOperatorBubble(texto, imgUrl){
+  let el=document.getElementById("opBubble");
+  if(!el){
+    el=document.createElement("div"); el.id="opBubble";
+    el.style.cssText="position:fixed;right:16px;bottom:84px;max-width:280px;background:#11203a;color:#eaf2ff;border:1px solid rgba(124,196,255,.35);border-radius:14px;padding:11px 13px;box-shadow:0 10px 30px rgba(0,0,0,.4);z-index:99998;cursor:pointer;font-size:13px;line-height:1.35";
+    el.onclick=function(){ try{toggleWidget(true);}catch(_e){} try{goChat();}catch(_e){} hideOperatorBubble(); };
+    document.body.appendChild(el);
+  }
+  const prev=imgUrl?"[Imagen]":String(texto||"").replace(/<[^>]*>/g,"").slice(0,90);
+  el.innerHTML='<div style="font-weight:800;margin-bottom:2px">💬 Nuevo mensaje</div><div style="opacity:.85">'+esc(prev||"Tenés un mensaje del operador")+'</div><div style="margin-top:6px;font-size:11px;color:#7cc4ff;font-weight:700">Tocá para abrir el chat ›</div>';
+  el.style.display="block";
+}
+function hideOperatorBubble(){ const el=document.getElementById("opBubble"); if(el) el.style.display="none"; }
+
 async function subirImagen(file){
   if(!sb||!file)return null;
-  if(file.size>5*1024*1024){toast("El archivo supera 5 MB");return null;}
-  // Solo imágenes seguras (nada de svg/html). La extensión sale del TIPO, no del nombre.
-  const TIPOS_OK={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
+  const TIPOS_OK=["image/jpeg","image/png","image/webp"];
   const mime=String(file.type||"").toLowerCase();
-  if(!TIPOS_OK[mime]){ toast("Solo se aceptan imágenes JPG, PNG o WEBP."); return null; }
-  const ext=TIPOS_OK[mime];
-  const path=`${(state.usuario||"anonimo").replace(/[^a-z0-9_-]/gi,"_")}/${Date.now()}_${Math.random().toString(36).slice(2,6)}.${ext}`;
+  if(!TIPOS_OK.includes(mime)){ toast("Solo se aceptan imágenes JPG, PNG o WEBP."); return null; }
+  if(file.size>5*1024*1024){ toast("El archivo supera 5 MB"); return null; }
+  // Comprimir; si falla, usar el original (ya validado: tipo permitido y < 5MB).
+  let blob = await comprimirImagenPortal(file,{maxLado:1280,calidad:0.72});
+  let contentType="image/jpeg";
+  if(!blob){ blob=file; contentType=mime; }
+  const usuarioSan=(state.usuario||"anonimo").replace(/[^a-z0-9_-]/gi,"_");
+  const ruta=(state.publicCode||"sin_ruta").replace(/[^a-z0-9_-]/gi,"_");
+  const ext = contentType==="image/jpeg" ? "jpg" : ({"image/png":"png","image/webp":"webp"}[contentType]||"jpg");
+  const path=`${ruta}/${usuarioSan}/${Date.now()}_${Math.random().toString(36).slice(2,6)}.${ext}`;
   try{
-    const{data:upData,error}=await sb.storage.from("comprobantes").upload(path,file,{cacheControl:"3600",upsert:false,contentType:mime});
+    const{error}=await sb.storage.from("comprobantes").upload(path,blob,{cacheControl:"3600",upsert:false,contentType});
     if(error){console.error("[img upload error]",error.message||error);toast("No se pudo subir la imagen");return null;}
     const{data:urlData}=sb.storage.from("comprobantes").getPublicUrl(path);
-    const url=urlData?.publicUrl||null;
-    console.log("[img upload ok]",url);
-    return url;
+    return urlData?.publicUrl||null;
   }catch(e){console.error("[img upload exception]",e);return null;}
 }
 
@@ -1023,7 +1106,10 @@ async function cargarBilleteraEnSlot(){
   const b=await obtenerBilletera();
   const slot=$("billeteraSlot");
   if(!slot)return;
-  if(!b){slot.innerHTML=`<div class="muted-line">Sin billetera disponible por ahora. Consultá por soporte.</div>`;return;}
+  if(!b){slot.innerHTML=`<div class="muted-line">Sin billetera disponible por ahora. Consultá por soporte.</div>`;state.lastBilleteraSignature="";return;}
+  const sig=billeteraSignature(b);
+  if(sig && sig===state.lastBilleteraSignature && slot.querySelector(".transfer-card")) return; // misma billetera y ya está pintada → no re-render (antiparpadeo)
+  state.lastBilleteraSignature=sig;
   const alias=b?.alias||"",cbu=b?.cbu||b?.cvu||"",titular=b?.titular||"",tipo=inferirTipoBilletera(b);
   const canShare=!!navigator.share;
   slot.innerHTML=`<div class="transfer-card">
@@ -1069,6 +1155,9 @@ function limpiarSolicitudAnteriorAntesDeNueva(){
 }
 
 async function enviarSolicitudCarga(usuario,monto,titular){
+  if(!_puedeOperar())return;
+  if(!(Number(monto)>0))return toast("Ingresá un monto válido.");
+  if(String(titular||"").trim().length<3)return toast("Indicá el titular que transfiere (mínimo 3 letras).");
   limpiarSolicitudAnteriorAntesDeNueva();
   const bp=billeteraPayloadPlano();
   const payload={usuario,monto:Number(monto),titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CARGA",...bp};
@@ -1076,7 +1165,7 @@ async function enviarSolicitudCarga(usuario,monto,titular){
   let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_destino:destino,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_metadata:payload});
   // Rechazo por validación de vínculo → NO usar fallback (sería un bypass). Mandamos a soporte.
   if(res.error && /VINCULO_NO_VALIDO|NO_AUTORIZADO|NO_REGISTRADO|CONFLICTO|BLOQUEADO/i.test(res.error.message||"")){
-    toast("⚠️ Tu usuario no está habilitado para operar. Validate o escribinos por soporte."); goChat(); return;
+    toast("⚠️ Tu usuario no está habilitado para operar. Validá tus datos o escribinos por soporte."); goChat(); return;
   }
   if(res.error){console.warn("[V18]",res.error);res=await rpc("landing_crear_solicitud_v3_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_comprobante_url:null,p_extra:payload});}
   if(res.error){res=await rpc("landing_crear_chat_v2_blindado",{p_public_code:state.publicCode,p_usuario:usuario,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_tipo:"CARGA",p_extra:payload});}
@@ -1115,10 +1204,13 @@ function renderRetiro(){
 }
 
 async function enviarSolicitudRetiro(){
+  if(!_puedeOperar())return;
   const usuario=state.usuario,montoRaw=$("retiroMonto")?.value.trim(),destino=$("retiroDestino")?.value.trim(),titular=$("retiroTitular")?.value.trim();
   if(!montoRaw||!destino||!titular)return toast("Completá todos los datos del retiro");
   const monto=Math.abs(Number(montoRaw));
   if(!monto||monto<=0)return toast("Ingresá un monto válido mayor a cero");
+  if(String(destino).trim().length<6)return toast("El alias/CBU de destino es muy corto.");
+  if(String(titular).trim().length<3)return toast("Indicá el titular de la cuenta (mínimo 3 letras).");
   const btn=$("btnEnviarRetiro");
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
   limpiarSolicitudAnteriorAntesDeNueva();
@@ -1129,7 +1221,7 @@ async function enviarSolicitudRetiro(){
     p_monto:monto,p_titular:titular,p_destino:destino,p_mensaje:msg,p_metadata:payload
   });
   if(res.error && /VINCULO_NO_VALIDO|NO_AUTORIZADO|NO_REGISTRADO|CONFLICTO|BLOQUEADO/i.test(res.error.message||"")){
-    toast("⚠️ Tu usuario no está habilitado para operar. Validate o escribinos por soporte."); goChat(); return;
+    toast("⚠️ Tu usuario no está habilitado para operar. Validá tus datos o escribinos por soporte."); goChat(); return;
   }
   if(res.error){
     console.warn("[V18] retiro v16 falló",res.error);
@@ -1175,6 +1267,8 @@ function renderClave(){
 }
 
 async function enviarSolicitudClave(){
+  if(state.nivelAcceso==="SOPORTE"){ toast("Validá tus datos para operar. Escribinos por soporte."); try{goChat();}catch(_e){} return; }
+  if(!state.pcCodigo){ toast("No identificamos tu oficina. Abrí el enlace de tu oficina o contactá a soporte."); return; }
   const claveRaw=($("claveNueva")?.value||"").trim();
   const clave=claveRaw||"12345a";
   if(clave.length<6)return toast("La clave debe tener al menos 6 caracteres");
