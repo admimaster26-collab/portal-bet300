@@ -527,6 +527,7 @@ function renderHome(){
       <input id="telefonoInicial" placeholder="Ej: 11 2345 6789" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter')guardarUsuarioInicial()">
       <button class="action-btn" id="gateBtn" onclick="guardarUsuarioInicial()">Continuar</button>
       <div id="gateError" style="display:none;margin-top:12px;background:rgba(255,84,104,.1);border:1px solid rgba(255,84,104,.3);color:#ffb3bd;border-radius:12px;padding:11px;font-size:13px;font-weight:700;line-height:1.45"></div>
+      <button class="link-btn" style="margin-top:12px;width:100%;text-align:center" onclick="pedirAltaSoporte()">¿Sos nuevo o no podés entrar? Escribinos 💬</button>
       <div class="trust-row">
         <span class="trust">🔒 Datos solo en este equipo</span>
         <span class="trust">⚡ Respuesta al instante</span>
@@ -558,8 +559,8 @@ function renderHome(){
         <div><div class="pending-title">${esc(state.motivoSoporte?"Activación pendiente":"No pudimos validar tus datos")}</div>
         <div class="pending-text">${esc(state.motivoSoporte||"Para cargar o retirar necesitás validar usuario + teléfono. Reintentá o escribinos por chat.")}</div></div>
       </div>
-      <button class="action-btn" id="revalBtn" onclick="reintentarValidacion()" style="margin-top:12px">🔄 Reintentar validación</button>
-      <div class="flow-note" style="margin-top:14px">💬 El <b>Chat de soporte</b> está disponible en la barra de abajo.</div>`
+      <button class="action-btn" onclick="goChat()" style="margin-top:12px">💬 Escribir a soporte</button>
+      <button class="link-btn" id="revalBtn" onclick="reintentarValidacion()" style="margin-top:10px;width:100%;text-align:center">🔄 Ya me activaron · Reintentar</button>`
     :`
     <div class="section-label">¿Qué necesitás hacer?</div>
     <button class="big-btn gold" ${pend?"disabled":""} onclick="goCarga()">
@@ -594,6 +595,24 @@ function _gateError(msg){
   const e=$("gateError");
   if(e){ e.textContent=msg; e.style.display="block"; }
   else toast(msg);
+}
+// Canal de soporte/alta SIN validación: para usuarios nuevos (no están en la base) o
+// que recién quieren registrarse (un pariente les pasó el link). Entran al chat directo
+// y el operador los registra/vincula desde el panel. NO pelea con el cotejo.
+function pedirAltaSoporte(){
+  const usuario=String($("usuarioInicial")?.value||"").trim();
+  const telefono=String($("telefonoInicial")?.value||"").trim();
+  if(!telefono || telefono.replace(/\D/g,"").length<6){ return _gateError("Dejanos tu teléfono (con código de área) para poder contactarte y darte el alta."); }
+  state.usuario = usuario || ("alta-"+telefono.replace(/\D/g,""));
+  state.telefono = telefono;
+  state.nivelAcceso = "SOPORTE";
+  state.motivoSoporte = "Estás en contacto con soporte. Decinos tu usuario (si ya tenés) o contanos que sos nuevo y te registramos.";
+  localStorage.setItem("bet300_usuario",state.usuario);
+  localStorage.setItem("bet300_telefono",state.telefono);
+  localStorage.setItem("bet300_nivel_acceso","SOPORTE");
+  localStorage.setItem("bet300_motivo_soporte",state.motivoSoporte);
+  renderHome();
+  goChat();
 }
 async function guardarUsuarioInicial(){
   const usuario=String($("usuarioInicial")?.value||"").trim();
