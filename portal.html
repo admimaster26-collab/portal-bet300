@@ -280,7 +280,7 @@ textarea{resize:vertical;min-height:76px}
 
   <div id="composeBox" class="widget-compose hidden">
     <button class="clip-btn" onclick="$('composeFileInput').click()" title="Adjuntar imagen">📎</button>
-    <input id="composeFileInput" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="queueComposerFile(this)">
+    <input id="composeFileInput" type="file" accept="image/*" style="display:none" onchange="queueComposerFile(this)">
     <textarea id="freeInput" rows="1" placeholder="Escribí tu mensaje..."></textarea>
     <button class="send-btn" onclick="sendFreeMessage()">➤</button>
   </div>
@@ -435,6 +435,10 @@ function addMsg(text,who="bot",imgUrl=null){
   $("messages").appendChild(wrap);scrollChat();
 }
 function incomingOperatorMsg(texto,imgUrl){
+  // Dedup central por contenido: el mismo mensaje del operador puede llegar por pollPortalThread
+  // Y por pollOperatorMessages (dos fuentes, con claves distintas). Así no se duplica.
+  const k=(String(texto||"").trim().slice(0,160))+"|"+(String(imgUrl||"").slice(0,120));
+  if(k!=="|"){ if(!state._opMsgSeen) state._opMsgSeen=new Set(); if(state._opMsgSeen.has(k)) return; state._opMsgSeen.add(k); }
   addMsg(escMsg(texto),"bot",imgUrl||null);
   const fueraDelChat = state.screen!=="chat" || !$("widget")?.classList.contains("open");
   if(fueraDelChat){ bumpUnread(); try{ showOperatorBubble(texto,imgUrl); }catch(_e){} }
