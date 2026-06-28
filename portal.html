@@ -577,6 +577,7 @@ function renderHome(){
       <span class="bb-ico">🏧</span><span class="bb-tx">Retirar<small>Pedí tu retiro a revisión</small></span><span class="bb-arrow">›</span>
     </button>
     <button class="row-btn" onclick="goClave()"><span class="rb-ico">🔑</span> Reiniciar clave de juego <span class="rb-arrow">›</span></button>
+    ${renderBonoBienvenidaCard()}
     <div class="flow-note" style="margin-top:14px">💬 ¿Dudas? Tenés <b>Chat</b> y <b>Estado</b> siempre a mano en la barra de abajo.</div>`}`;
   updateUnreadUI();
 }
@@ -1116,8 +1117,7 @@ function renderCarga(){
       <input id="cargaTitular" placeholder="Ej: Maria Lopez" autocomplete="name">
       <button id="btnEnviarCarga" class="action-btn" onclick="enviarSolicitudCargaDirecta()">Ya transferí · Enviar solicitud</button>
       <button class="action-btn secondary-btn" style="margin-top:9px" onclick="goChat()">Necesito ayuda</button>
-    </div>
-    ${renderBonoBienvenidaCard()}`;
+    </div>`;
   cargarBilleteraEnSlot();
 }
 function setMonto(v){const i=$("cargaMonto");if(i){i.value=v;haptic(6);syncChips();}}
