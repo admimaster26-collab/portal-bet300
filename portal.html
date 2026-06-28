@@ -318,6 +318,7 @@ const state={
   portalThreadSeen:new Set(JSON.parse(localStorage.getItem("bet300_portal_thread_seen")||"[]")),
   shownTexts:new Set(),
   solicitudStartedAt:Number(localStorage.getItem("bet300_solicitud_started_at")||0),
+  promoActiva:false,
   screen:"home", unread:0, chatGreeted:false
 };
 
@@ -924,6 +925,17 @@ async function initRoute(){
   console.log("[BET300 V18] canal",state.pcCodigo,"ruta",state.publicCode);
 }
 
+// Promo de bienvenida: solo se muestra si la oficina la tiene activada (landing_rutas_publicas.promo_activa).
+async function cargarPromoActiva(){
+  state.promoActiva=false;
+  if(!state.pcCodigo)return;
+  try{
+    const r=await rpc("landing_promo_activa",{p_pc_codigo:state.pcCodigo});
+    const d=normalize(r.data);
+    state.promoActiva = r.data===true || d===true || !!(d&&(d.activa||d.promo_activa));
+  }catch(_e){}
+}
+
 // ── Image upload (comprobantes + chat) ───────────────────────────────────
 // ── Producción: compresión de imágenes ──────────────────────────────────────
 async function comprimirImagenPortal(file, opts={}){
@@ -1011,6 +1023,7 @@ function bonoBienvenidaEstado(){
   return {app, push};
 }
 function renderBonoBienvenidaCard(){
+  if(!state.promoActiva) return ""; // solo oficinas con la promo activada (alta o activación posterior)
   const e=bonoBienvenidaEstado();
   const chip=(ok)=> ok?'<span style="color:#22c55e;font-weight:800">Sí ✅</span>':'<span style="color:#fbbf24;font-weight:800">Todavía no ⏳</span>';
   return `<div class="form-card" style="margin-top:12px;border:1px solid rgba(124,196,255,.25)">
@@ -1126,15 +1139,21 @@ function syncChips(){
   document.querySelectorAll("#screenCarga .chip").forEach(c=>c.classList.toggle("on",c.dataset.v===val));
 }
 async function cargarBilleteraEnSlot(){
-  const b=await obtenerBilletera();
   const slot=$("billeteraSlot");
   if(!slot)return;
+  // No mostrar datos de transferencia si la sesión no está validada (usuario sin alta no debe verlos).
+  if(String(state.nivelAcceso||"").toUpperCase()==="SOPORTE" || !state.usuario){
+    slot.innerHTML=`<div class="muted-line">Validá tu usuario y teléfono para ver los datos de transferencia.</div>`;
+    state.lastBilleteraSignature="";return;
+  }
+  const b=await obtenerBilletera();
   if(!b){slot.innerHTML=`<div class="muted-line">Sin billetera disponible por ahora. Consultá por soporte.</div>`;state.lastBilleteraSignature="";return;}
   const sig=billeteraSignature(b);
   if(sig && sig===state.lastBilleteraSignature && slot.querySelector(".transfer-card")) return; // misma billetera y ya está pintada → no re-render (antiparpadeo)
   state.lastBilleteraSignature=sig;
   const alias=b?.alias||"",cbu=b?.cbu||b?.cvu||"",titular=b?.titular||"",tipo=inferirTipoBilletera(b);
   const canShare=!!navigator.share;
+  // Tarjeta compacta (Titular + Tipo en una línea, sin hint) para no provocar scroll en el monto/confirmación.
   slot.innerHTML=`<div class="transfer-card">
     <div class="transfer-head">
       <div class="transfer-title">📥 Transferí a esta cuenta</div>
@@ -1142,9 +1161,7 @@ async function cargarBilleteraEnSlot(){
     </div>
     ${alias?`<div class="transfer-field"><div class="tf-main"><div class="transfer-label">Alias</div><div class="transfer-value">${esc(alias)}</div></div><button class="copy-btn" data-lbl="Copiar" onclick="copyText('${esc(alias)}',this)">Copiar</button></div>`:""}
     ${cbu?`<div class="transfer-field"><div class="tf-main"><div class="transfer-label">CBU / CVU</div><div class="transfer-value">${esc(cbu)}</div></div><button class="copy-btn" data-lbl="Copiar" onclick="copyText('${esc(cbu)}',this)">Copiar</button></div>`:""}
-    ${titular?`<div class="transfer-field"><div class="tf-main"><div class="transfer-label">Titular</div><div class="transfer-value">${esc(titular)}</div></div></div>`:""}
-    <div class="transfer-field"><div class="tf-main"><div class="transfer-label">Tipo</div><div class="transfer-value">${esc(tipo)}</div></div></div>
-    <div class="transfer-hint"><span>💡</span><span>Transferí primero, después completá el monto y tocá <b>Ya transferí</b>.</span></div>
+    ${titular?`<div class="transfer-field"><div class="tf-main"><div class="transfer-label">Titular${tipo?` · ${esc(tipo)}`:""}</div><div class="transfer-value">${esc(titular)}</div></div></div>`:""}
   </div>`;
 }
 function _billeteraTexto(){
@@ -1466,6 +1483,7 @@ window.addEventListener("load",async()=>{
   $("appFrame").src=PLATFORM_URL;
   restoreLauncherMini();
   await initRoute();
+  await cargarPromoActiva();
   setTimeout(marcarAppInstalada, 2500);
   renderHome();
   showScreen("home");
