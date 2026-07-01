@@ -381,6 +381,17 @@ function goRetiro(){if(_bloqueoSoporte())return;if(bloquearNuevaSolicitud("RETIR
 function goClave(){if(_bloqueoSoporte())return;showScreen("clave");renderClave();}
 function goEstado(){showScreen("estado");renderEstado();}
 function goChat(){ try{hideOperatorBubble();}catch(_e){} showScreen("chat");renderChat();}
+// Alta de usuario NUEVO: abre el chat y auto-envía un mensaje predeterminado con el apodo y el
+// teléfono que el cliente ingresó → el operador ya sabe que es alta y con qué datos vincular.
+function escribirSoporteAlta(){
+  goChat();
+  if(state._altaSoporteEnviado) return; // ya lo mandamos, no duplicar
+  const apodo=(state.usuario||"").trim(), tel=(state.telefono||"").trim();
+  const msg=`Hola 👋 Quiero crear usuario.${apodo?` Apodo: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`;
+  state._altaSoporteEnviado=true;
+  try{ addMsg(esc(msg),"user"); }catch(_e){}
+  setTimeout(()=>{ try{ enviarMensajeSoporte(msg, null); }catch(_e){} }, 250);
+}
 
 // ── No leídos ──────────────────────────────────────────────────────────────
 function updateUnreadUI(){
@@ -567,8 +578,9 @@ function renderHome(){
         <div><div class="pending-title">${esc(state.motivoSoporte?"Activación pendiente":"No pudimos validar tus datos")}</div>
         <div class="pending-text">${esc(state.motivoSoporte||"Para cargar o retirar necesitás validar usuario + teléfono. Reintentá o escribinos por chat.")}</div></div>
       </div>
-      <button class="action-btn" onclick="goChat()" style="margin-top:12px">💬 Escribir a soporte</button>
-      <button class="link-btn" id="revalBtn" onclick="reintentarValidacion()" style="margin-top:10px;width:100%;text-align:center">🔄 Ya me activaron · Reintentar</button>`
+      <button class="action-btn" onclick="escribirSoporteAlta()" style="margin-top:12px">💬 Escribir a soporte</button>
+      <button class="link-btn" id="revalBtn" onclick="reintentarValidacion()" style="margin-top:10px;width:100%;text-align:center">🔄 Ya me activaron · Reintentar</button>
+      <div class="screen-desc" style="margin-top:8px;text-align:center;font-size:11px">¿Sos nuevo? Cuando el operador te pase tu <b>usuario</b>, tocá <b>Cambiar</b> (arriba) e ingresá con ese usuario + tu teléfono.</div>`
     :`
     <div class="section-label">¿Qué necesitás hacer?</div>
     <button class="big-btn gold" ${pend?"disabled":""} onclick="goCarga()">
