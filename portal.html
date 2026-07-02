@@ -540,13 +540,13 @@ function renderHome(){
     home.innerHTML=`<div class="gate-badge">🎰 BET300 · Cajero</div>
       <div class="gate-title">Bienvenido 👋</div>
       <div class="gate-txt">Para cargar, retirar o pedir soporte, ingresá tu usuario de plataforma y tu teléfono.</div>
-      <label>Usuario de plataforma</label>
+      <label id="lblUsuarioInicial">Usuario de plataforma</label>
       <input id="usuarioInicial" placeholder="Ej: usuario123" autocomplete="username" inputmode="text" onkeydown="if(event.key==='Enter')document.getElementById('telefonoInicial').focus()">
       <label>Teléfono (WhatsApp, con código de área)</label>
-      <input id="telefonoInicial" placeholder="Ej: 11 2345 6789" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter')guardarUsuarioInicial()">
-      <button class="action-btn" id="gateBtn" onclick="guardarUsuarioInicial()">Continuar</button>
+      <input id="telefonoInicial" placeholder="Ej: 11 2345 6789" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter')(state._modoAltaNueva?pedirAltaSoporte():guardarUsuarioInicial())">
+      <button class="action-btn" id="gateBtn" onclick="state._modoAltaNueva?pedirAltaSoporte():guardarUsuarioInicial()">Continuar</button>
       <div id="gateError" style="display:none;margin-top:12px;background:rgba(255,84,104,.1);border:1px solid rgba(255,84,104,.3);color:#ffb3bd;border-radius:12px;padding:11px;font-size:13px;font-weight:700;line-height:1.45"></div>
-      <button class="link-btn" style="margin-top:12px;width:100%;text-align:center" onclick="pedirAltaSoporte()">¿Sos nuevo o no podés entrar? Escribinos 💬</button>
+      <button class="link-btn" id="linkAltaNueva" style="margin-top:12px;width:100%;text-align:center" onclick="toggleModoAltaNueva(true)">¿Sos nuevo o no podés entrar? Escribinos 💬</button>
       <div class="trust-row">
         <span class="trust">🔒 Datos solo en este equipo</span>
         <span class="trust">⚡ Respuesta al instante</span>
@@ -617,14 +617,33 @@ function _gateError(msg){
   if(e){ e.textContent=msg; e.style.display="block"; }
   else toast(msg);
 }
+// Toggle "Sos nuevo": el campo que normalmente pide el USUARIO real pasa a pedir
+// nombre/apodo (un usuario nuevo todavía no tiene usuario de plataforma).
+function toggleModoAltaNueva(on){
+  state._modoAltaNueva = !!on;
+  const lbl=$("lblUsuarioInicial"), inp=$("usuarioInicial"), link=$("linkAltaNueva"), btn=$("gateBtn");
+  if(on){
+    if(lbl) lbl.textContent="Tu nombre o apodo (sos nuevo)";
+    if(inp){ inp.placeholder="Ej: Juan / Juancito"; }
+    if(link){ link.textContent="Ya tengo usuario · Volver"; link.onclick=function(){toggleModoAltaNueva(false);}; }
+    if(btn) btn.textContent="Enviar y hablar con soporte";
+  } else {
+    if(lbl) lbl.textContent="Usuario de plataforma";
+    if(inp){ inp.placeholder="Ej: usuario123"; }
+    if(link){ link.textContent="¿Sos nuevo o no podés entrar? Escribinos 💬"; link.onclick=function(){toggleModoAltaNueva(true);}; }
+    if(btn) btn.textContent="Continuar";
+  }
+  const err=$("gateError"); if(err) err.style.display="none";
+  setTimeout(()=>$("usuarioInicial")?.focus(),50);
+}
 // Canal de soporte/alta SIN validación: para usuarios nuevos (no están en la base) o
 // que recién quieren registrarse (un pariente les pasó el link). Entran al chat directo
 // y el operador los registra/vincula desde el panel. NO pelea con el cotejo.
 function pedirAltaSoporte(){
-  const usuario=String($("usuarioInicial")?.value||"").trim();
+  const nombre=String($("usuarioInicial")?.value||"").trim();
   const telefono=String($("telefonoInicial")?.value||"").trim();
   if(!telefono || telefono.replace(/\D/g,"").length<6){ return _gateError("Dejanos tu teléfono (con código de área) para poder contactarte y darte el alta."); }
-  state.usuario = usuario || ("alta-"+telefono.replace(/\D/g,""));
+  state.usuario = nombre || ("alta-"+telefono.replace(/\D/g,""));
   state.telefono = telefono;
   state.nivelAcceso = "SOPORTE";
   state.motivoSoporte = "Estás en contacto con soporte. Decinos tu usuario (si ya tenés) o contanos que sos nuevo y te registramos.";
@@ -633,7 +652,7 @@ function pedirAltaSoporte(){
   localStorage.setItem("bet300_nivel_acceso","SOPORTE");
   localStorage.setItem("bet300_motivo_soporte",state.motivoSoporte);
   renderHome();
-  goChat();
+  escribirSoporteAlta(); // abre el chat Y auto-envía "quiero crear usuario. Apodo: X. Tel: Y"
 }
 async function guardarUsuarioInicial(){
   const usuario=String($("usuarioInicial")?.value||"").trim();
