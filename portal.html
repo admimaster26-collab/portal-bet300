@@ -389,7 +389,7 @@ function escribirSoporteAlta(){
   const apodo=(state.usuario||"").trim(), tel=(state.telefono||"").trim();
   const msg=`Hola 👋 Quiero crear usuario.${apodo?` Apodo: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`;
   state._altaSoporteEnviado=true;
-  try{ addMsg(esc(msg),"user"); }catch(_e){}
+  try{ addMsg(esc(msg),"user"); state.shownTexts.add("u|"+msg.substring(0,200)); }catch(_e){}
   setTimeout(()=>{ try{ enviarMensajeSoporte(msg, null); }catch(_e){} }, 250);
 }
 
@@ -510,6 +510,9 @@ function renderChat(){
     state.chatGreeted=true;
     addMsg("Hola 👋 Escribinos tu consulta o mandá tu comprobante. Un operador te responde por acá.","bot");
   }
+  // Hidratar el historial YA (no esperar el próximo tick del poll ~3.5s). Así al abrir el chat
+  // el usuario ve la conversación previa y, si el operador ya validó, el botón "Ingresar".
+  if(state.usuario){ try{ pollPortalThread(); }catch(_e){} }
   setTimeout(()=>$("freeInput")?.focus(),80);
   setTimeout(()=>subscribePush(),1200);
 }
@@ -562,6 +565,39 @@ async function autoChequeoValidacion(){
 function threadKey(m){
   return String((m?.origen||"")+"|"+(m?.solicitud_id||"")+"|"+(m?.fecha||"")+"|"+(m?.mensaje||""));
 }
+// Render de UN mensaje del thread (historial o nuevo), del operador o del propio usuario.
+// notificar=true SOLO para mensajes que no vimos en una sesión previa → recién ahí bumpeamos
+// unread / burbuja / notificación (y solo si el chat no está enfocado). Así el historial completo
+// se pinta al abrir el chat sin spamear notificaciones.
+function renderThreadMsg(m, notificar){
+  const origen=String(m.origen||"").toUpperCase();
+  const rawTexto=m.mensaje||"";
+  const imgUrl=m.imagen_url||m.imagen||null;
+  if(!rawTexto&&!imgUrl)return;
+  if(origen==="OPERADOR"){
+    // Marca oculta de validación ⟦INGRESAR:usuario⟧ → botón "Ingresar" (se saca del texto visible).
+    let ing=null, texto=rawTexto;
+    const mm=rawTexto.match(/⟦INGRESAR:([^⟧]*)⟧/);
+    if(mm){ ing=String(mm[1]||"").trim(); texto=rawTexto.replace(/⟦INGRESAR:[^⟧]*⟧/g,"").trim(); }
+    // Dedup por contenido, compartido con pollOperatorMessages (misma clave, texto crudo).
+    const tk=rawTexto?rawTexto.substring(0,200):((m.fecha||"")+"|img|"+(imgUrl||"").substring(0,80));
+    if(!state.shownTexts.has(tk)){
+      state.shownTexts.add(tk);
+      if(texto||imgUrl) addMsg(escMsg(texto),"bot",imgUrl||null);
+      if(notificar){
+        const fuera=state.screen!=="chat"||!$("widget")?.classList.contains("open");
+        if(fuera){ bumpUnread(); try{ showOperatorBubble(texto,imgUrl); }catch(_e){} if(texto){ try{ notificarLocal("BET300 · Operador",texto.substring(0,100),"/","bet300-op"); }catch(_e){} } }
+      }
+    }
+    if(ing) mostrarBotonIngresar(ing);
+  } else {
+    // Mensaje del propio usuario (historial). Dedup por contenido contra lo ya mostrado en vivo.
+    const uk=rawTexto?("u|"+rawTexto.substring(0,200)):("uimg|"+(imgUrl||"").substring(0,80));
+    if(state.shownTexts.has(uk))return;
+    state.shownTexts.add(uk);
+    addMsg(rawTexto?escMsg(rawTexto):"","user",imgUrl||null);
+  }
+}
 async function pollPortalThread(){
   if(!state.usuario||!$("widget")?.classList.contains("open"))return;
   // Respaldo: si el operador validó desde el panel pero la marca ⟦INGRESAR⟧ no llegó/no se vio
@@ -578,21 +614,17 @@ async function pollPortalThread(){
   const thread=Array.isArray(d.chat_thread)?d.chat_thread:[];
   if(!thread.length)return;
 
+  // _threadRendered = set de SESIÓN (lo que ya está en el DOM ahora). Al recargar arranca vacío,
+  // así que el historial completo se vuelve a pintar. portalThreadSeen (persistido) solo decide si
+  // el mensaje es "nuevo" (para notificar) o parte del historial ya visto.
+  if(!state._threadRendered) state._threadRendered=new Set();
   thread.forEach(m=>{
     const key=threadKey(m);
-    if(state.portalThreadSeen.has(key))return;
+    if(state._threadRendered.has(key))return;
+    state._threadRendered.add(key);
+    const nuevo=!state.portalThreadSeen.has(key);
     state.portalThreadSeen.add(key);
-
-    const origen=String(m.origen||"").toUpperCase();
-    const texto=m.mensaje||"";
-    if(origen==="OPERADOR"&&(texto||m.imagen_url||m.imagen)){
-      const imgUrl=m.imagen_url||m.imagen||null;
-      const tk=texto?texto.substring(0,200):(m.fecha||"")+"|img|"+(imgUrl||"").substring(0,80);
-      if(state.shownTexts.has(tk))return;
-      state.shownTexts.add(tk);
-      incomingOperatorMsg(texto,imgUrl);
-      if(!texto&&imgUrl)notificarLocal("BET300 · Operador","[Imagen]","/","bet300-op");
-    }
+    renderThreadMsg(m, nuevo);
   });
   savePortalThreadSeen();
 }
@@ -786,7 +818,7 @@ function cambiarUsuario(){
 function _confirmarCambioUsuario(){
   stopChatPoll();stopEstadoPoll();stopPortalThreadPoll();
   ["bet300_usuario","bet300_telefono","bet300_vinculo_estado","bet300_nivel_acceso","bet300_motivo_soporte","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
-  Object.assign(state,{usuario:"",telefono:"",nivelAcceso:"",motivoSoporte:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),composerImage:null,unread:0,chatGreeted:false});
+  Object.assign(state,{usuario:"",telefono:"",nivelAcceso:"",motivoSoporte:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),_threadRendered:new Set(),_ingresarUserShown:null,composerImage:null,unread:0,chatGreeted:false});
   clearComposerImage();
   $("messages").innerHTML="";
   goHome();
@@ -1466,13 +1498,13 @@ async function sendFreeMessage(){
   if(!txt&&!hasImg)return;
   if(!state.usuario){toast("Primero indicá tu usuario");goHome();return;}
   input.value="";
-  if(txt)addMsg(esc(txt),"user");
+  if(txt){ addMsg(esc(txt),"user"); state.shownTexts.add("u|"+txt.substring(0,200)); }
   let imgUrl=null;
   if(hasImg){
     const file=state.composerImage;
     clearComposerImage();
     imgUrl=await subirImagen(file);
-    if(imgUrl)addMsg("📎 Imagen adjunta","user",imgUrl);
+    if(imgUrl){ addMsg("📎 Imagen adjunta","user",imgUrl); state.shownTexts.add("uimg|"+imgUrl.substring(0,80)); }
   }
   await enviarMensajeSoporte(txt||"",imgUrl);
 }
