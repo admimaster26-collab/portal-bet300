@@ -447,13 +447,63 @@ function addMsg(text,who="bot",imgUrl=null){
   $("messages").appendChild(wrap);scrollChat();
 }
 function incomingOperatorMsg(texto,imgUrl){
+  texto=String(texto==null?"":texto);
+  // ── Marca oculta de validación: el operador validó la cuenta desde el panel y manda
+  //    ⟦INGRESAR:usuario⟧ dentro del mensaje. No mostramos la marca cruda: mostramos el
+  //    texto (sin la marca) + un botón "Ingresar" para que entre directo desde el chat.
+  let _ingresarUser=null;
+  const _mIng=texto.match(/⟦INGRESAR:([^⟧]*)⟧/);
+  if(_mIng){ _ingresarUser=String(_mIng[1]||"").trim(); texto=texto.replace(/⟦INGRESAR:[^⟧]*⟧/g,"").trim(); }
   // Dedup central por contenido: el mismo mensaje del operador puede llegar por pollPortalThread
   // Y por pollOperatorMessages (dos fuentes, con claves distintas). Así no se duplica.
   const k=(String(texto||"").trim().slice(0,160))+"|"+(String(imgUrl||"").slice(0,120));
-  if(k!=="|"){ if(!state._opMsgSeen) state._opMsgSeen=new Set(); if(state._opMsgSeen.has(k)) return; state._opMsgSeen.add(k); }
-  addMsg(escMsg(texto),"bot",imgUrl||null);
+  if(k!=="|"){ if(!state._opMsgSeen) state._opMsgSeen=new Set(); if(state._opMsgSeen.has(k)){ if(_ingresarUser) mostrarBotonIngresar(_ingresarUser); return; } state._opMsgSeen.add(k); }
+  if(texto||imgUrl) addMsg(escMsg(texto),"bot",imgUrl||null);
   const fueraDelChat = state.screen!=="chat" || !$("widget")?.classList.contains("open");
   if(fueraDelChat){ bumpUnread(); try{ showOperatorBubble(texto,imgUrl); }catch(_e){} }
+  if(_ingresarUser) mostrarBotonIngresar(_ingresarUser);
+}
+// Botón "Ingresar" dentro del chat: aparece cuando el operador validó la cuenta (por la marca
+// ⟦INGRESAR⟧ o por el auto-chequeo del cotejo). Al tocarlo, revalida y entra directo al home.
+function mostrarBotonIngresar(usuario){
+  usuario=String(usuario||"").trim() || (state.usuario||"");
+  if((state.nivelAcceso||"")==="OK") return;                 // ya está adentro
+  if(state._ingresarUserShown===usuario && $("btnIngresarValidado")) return; // no duplicar
+  state._ingresarUserShown=usuario;
+  const prev=$("btnIngresarValidado"); if(prev){ const pm=prev.closest(".msg"); if(pm) pm.remove(); }
+  const msgs=$("messages"); if(!msgs) return;
+  const wrap=document.createElement("div");
+  wrap.className="msg bot";
+  wrap.innerHTML='<div class="bubble" style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.42)">'
+    +'<div style="font-weight:800;color:#86efac;margin-bottom:6px">✅ ¡Tu cuenta ya está activa!</div>'
+    +'<div style="font-size:13px;line-height:1.4;margin-bottom:10px">Ya podés entrar'+(usuario?' con el usuario <b>'+esc(usuario)+'</b>':'')+' y empezar a operar.</div>'
+    +'<button id="btnIngresarValidado" class="action-btn" style="margin:0" onclick="confirmarIngresoValidado(\''+usuario.replace(/'/g,"")+'\')">Ingresar ›</button>'
+    +'</div><div class="meta">BET300 · '+now()+'</div>';
+  msgs.appendChild(wrap); scrollChat();
+  const fueraDelChat = state.screen!=="chat" || !$("widget")?.classList.contains("open");
+  if(fueraDelChat){ bumpUnread(); try{ showOperatorBubble("✅ ¡Ya te activamos! Tocá para ingresar.",null); }catch(_e){} }
+}
+async function confirmarIngresoValidado(usuario){
+  usuario=String(usuario||"").trim();
+  if(usuario){ state.usuario=usuario; try{localStorage.setItem("bet300_usuario",usuario);}catch(_e){} }
+  const btn=$("btnIngresarValidado"); if(btn){ btn.disabled=true; btn.textContent="Ingresando..."; }
+  try{
+    const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
+    const d=normalize(r.data)||r.data||{};
+    const verdict=d.verdict||"";
+    const nivel=(verdict==="ACCESO")?"OK":(verdict==="NUEVO"||verdict==="PENDIENTE")?"PENDIENTE":"";
+    if(nivel){
+      state.nivelAcceso=nivel; try{localStorage.setItem("bet300_nivel_acceso",nivel);}catch(_e){}
+      state.motivoSoporte=""; try{localStorage.removeItem("bet300_motivo_soporte");}catch(_e){}
+      try{ toggleWidget(false); }catch(_e){}
+      goHome();
+      toast(nivel==="OK"?"✅ ¡Listo! Ya podés operar.":"Listo, ya podés operar.");
+    } else if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){
+      toast("⚠️ "+(d.mensaje||"Escribinos por chat.")); if(btn){btn.disabled=false;btn.textContent="Reintentar ingreso";}
+    } else {
+      toast("Todavía no figura activada. Probá de nuevo en unos segundos."); if(btn){btn.disabled=false;btn.textContent="Ingresar ›";}
+    }
+  }catch(_e){ toast("No pudimos ingresar ahora. Probá de nuevo."); if(btn){btn.disabled=false;btn.textContent="Ingresar ›";} }
 }
 function renderChat(){
   if(!state.chatGreeted&&!$("messages").children.length){
@@ -499,11 +549,28 @@ function startPortalThreadPoll(){
 function stopPortalThreadPoll(){
   if(portalThreadTimer){clearInterval(portalThreadTimer);portalThreadTimer=null;}
 }
+// Re-chequeo silencioso del cotejo: si dio ACCESO, ofrece el botón "Ingresar" en el chat.
+async function autoChequeoValidacion(){
+  if(state._autoRevalBusy) return; state._autoRevalBusy=true;
+  try{
+    const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
+    const d=normalize(r.data)||r.data||{};
+    if((d.verdict||"")==="ACCESO"){ mostrarBotonIngresar(state.usuario); }
+  }catch(_e){}
+  finally{ state._autoRevalBusy=false; }
+}
 function threadKey(m){
   return String((m?.origen||"")+"|"+(m?.solicitud_id||"")+"|"+(m?.fecha||"")+"|"+(m?.mensaje||""));
 }
 async function pollPortalThread(){
   if(!state.usuario||!$("widget")?.classList.contains("open"))return;
+  // Respaldo: si el operador validó desde el panel pero la marca ⟦INGRESAR⟧ no llegó/no se vio
+  // (p.ej. tras recargar la página), re-chequeamos el cotejo cada ~10s SOLO mientras el usuario
+  // todavía no entró. Al detectar ACCESO, mostramos el botón "Ingresar" igual.
+  if((state.nivelAcceso||"")!=="OK" && state.telefono){
+    state._revalTick=(state._revalTick||0)+1;
+    if(state._revalTick===1 || state._revalTick%3===0){ autoChequeoValidacion(); }
+  }
   const res=await rpc("landing_portal_chat_thread_get",{p_usuario:state.usuario,p_public_code:state.publicCode,p_telefono:state.telefono||""});
   if(res.error){console.warn("[chat_thread]",res.error);_onPollFail();return;}
   _onPollOk();
@@ -1157,7 +1224,7 @@ function renderCarga(){
       <label>Monto transferido</label>
       <input id="cargaMonto" type="number" min="1" inputmode="numeric" placeholder="Ej: 5000" oninput="syncChips()">
       <div class="chips">${MONTOS_RAPIDOS.map(v=>`<button type="button" class="chip" data-v="${v}" onclick="setMonto(${v})">$${v.toLocaleString("es-AR")}</button>`).join("")}</div>
-      <label>Titular que transfiere</label>
+      <label>Titular de la cuenta desde donde se envía el dinero</label>
       <input id="cargaTitular" placeholder="Ej: Maria Lopez" autocomplete="name">
       <button id="btnEnviarCarga" class="action-btn" onclick="enviarSolicitudCargaDirecta()">Ya transferí · Enviar solicitud</button>
       <button class="action-btn secondary-btn" style="margin-top:9px" onclick="goChat()">Necesito ayuda</button>
