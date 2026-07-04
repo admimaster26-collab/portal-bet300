@@ -377,7 +377,7 @@ function showScreen(name){
 function goHome(){renderHome();showScreen("home");}
 function _bloqueoSoporte(){ if((state.nivelAcceso||"")==="SOPORTE"){ toast("Validá tu usuario + teléfono para operar. Mientras tanto, escribinos por chat."); goHome(); return true; } return false; }
 function goCarga(){if(_bloqueoSoporte())return;if(bloquearNuevaSolicitud("CARGA"))return;showScreen("carga");renderCarga();}
-function goRetiro(){if(_bloqueoSoporte())return;if(bloquearNuevaSolicitud("RETIRO"))return;showScreen("retiro");renderRetiro();}
+function goRetiro(){if(_bloqueoSoporte())return;if(bloquearNuevaSolicitud("RETIRO"))return;const r=retiroCooldownRestanteMs();if(r>0){toast("Ya solicitaste un retiro hoy. Podés pedir otro en "+_fmtRestante(r)+".");return;}showScreen("retiro");renderRetiro();}
 function goClave(){if(_bloqueoSoporte())return;showScreen("clave");renderClave();}
 function goEstado(){showScreen("estado");renderEstado();}
 function goChat(){ try{hideOperatorBubble();}catch(_e){} showScreen("chat");renderChat();}
@@ -1285,6 +1285,13 @@ function billeteraPayloadPlano(){
 
 // ── Cargar (pantalla) ──────────────────────────────────────────────────────
 const MONTOS_RAPIDOS=[2000,5000,10000,20000,50000];
+// Mínimos y regla de 1 retiro por día (24h) desde el portal.
+const MONTO_MIN_CARGA=2000, MONTO_MIN_RETIRO=5000, RETIRO_COOLDOWN_MS=24*60*60*1000;
+const _money=v=>"$"+Number(v).toLocaleString("es-AR");
+function _fmtRestante(ms){const h=Math.floor(ms/3600000),m=Math.round((ms%3600000)/60000);return h>0?(h+"h"+(m>0?" "+m+"m":"")):((m>0?m:1)+"m");}
+// Cooldown de retiro keyeado por usuario (no bloquea a otro usuario en el mismo dispositivo).
+function _retiroKey(){return "bet300_ultimo_retiro_at_"+String(state.usuario||"").toLowerCase();}
+function retiroCooldownRestanteMs(){const last=Number(localStorage.getItem(_retiroKey())||0);if(!last)return 0;const r=RETIRO_COOLDOWN_MS-(Date.now()-last);return r>0?r:0;}
 function renderCarga(){
   const s=$("screenCarga");
   s.innerHTML=`<div class="screen-title">Cargar saldo</div>
@@ -1299,8 +1306,8 @@ function renderCarga(){
       </div>
     </div>
     <div class="form-card">
-      <label>Monto transferido</label>
-      <input id="cargaMonto" type="number" min="1" inputmode="numeric" placeholder="Ej: 5000" oninput="syncChips()">
+      <label>Monto transferido (mínimo ${_money(MONTO_MIN_CARGA)})</label>
+      <input id="cargaMonto" type="number" min="${MONTO_MIN_CARGA}" inputmode="numeric" placeholder="Ej: 5000" oninput="syncChips()">
       <div class="chips">${MONTOS_RAPIDOS.map(v=>`<button type="button" class="chip" data-v="${v}" onclick="setMonto(${v})">$${v.toLocaleString("es-AR")}</button>`).join("")}</div>
       <label>Titular de la cuenta desde donde se envía el dinero</label>
       <input id="cargaTitular" placeholder="Ej: Maria Lopez" autocomplete="name">
@@ -1357,6 +1364,7 @@ async function enviarSolicitudCargaDirecta(){
   const monto=($("cargaMonto")?.value||"").trim();
   const titular=($("cargaTitular")?.value||"").trim();
   if(!monto||!titular)return toast("Completá monto y titular");
+  if(Number(monto)<MONTO_MIN_CARGA)return toast("La carga mínima es "+_money(MONTO_MIN_CARGA)+".");
   const btn=$("btnEnviarCarga");
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
   await enviarSolicitudCarga(state.usuario,monto,titular);
@@ -1373,6 +1381,7 @@ function limpiarSolicitudAnteriorAntesDeNueva(){
 async function enviarSolicitudCarga(usuario,monto,titular){
   if(!_puedeOperar())return;
   if(!(Number(monto)>0))return toast("Ingresá un monto válido.");
+  if(Number(monto)<MONTO_MIN_CARGA)return toast("La carga mínima es "+_money(MONTO_MIN_CARGA)+".");
   if(String(titular||"").trim().length<3)return toast("Indicá el titular que transfiere (mínimo 3 letras).");
   limpiarSolicitudAnteriorAntesDeNueva();
   const bp=billeteraPayloadPlano();
@@ -1405,11 +1414,11 @@ async function enviarSolicitudCarga(usuario,monto,titular){
 function renderRetiro(){
   const s=$("screenRetiro");
   s.innerHTML=`<div class="screen-title">Solicitar retiro</div>
-    <div class="screen-desc">El retiro queda sujeto a revisión de cuenta y saldo disponible.</div>
+    <div class="screen-desc">El retiro queda sujeto a revisión de cuenta y saldo disponible. Podés solicitar <b>1 retiro por día</b>.</div>
     <div class="user-chip">👤 ${esc(state.usuario)}</div>
     <div class="form-card">
-      <label>Monto</label>
-      <input id="retiroMonto" type="number" min="1" inputmode="numeric" placeholder="Ej: 10000">
+      <label>Monto (mínimo ${_money(MONTO_MIN_RETIRO)})</label>
+      <input id="retiroMonto" type="number" min="${MONTO_MIN_RETIRO}" inputmode="numeric" placeholder="Ej: 10000">
       <label>Alias / CBU destino</label>
       <input id="retiroDestino" placeholder="Alias o CBU/CVU donde cobrás">
       <label>Titular destino</label>
@@ -1421,10 +1430,13 @@ function renderRetiro(){
 
 async function enviarSolicitudRetiro(){
   if(!_puedeOperar())return;
+  const restRet=retiroCooldownRestanteMs();
+  if(restRet>0)return toast("Ya solicitaste un retiro hoy. Podés pedir otro en "+_fmtRestante(restRet)+".");
   const usuario=state.usuario,montoRaw=$("retiroMonto")?.value.trim(),destino=$("retiroDestino")?.value.trim(),titular=$("retiroTitular")?.value.trim();
   if(!montoRaw||!destino||!titular)return toast("Completá todos los datos del retiro");
   const monto=Math.abs(Number(montoRaw));
   if(!monto||monto<=0)return toast("Ingresá un monto válido mayor a cero");
+  if(monto<MONTO_MIN_RETIRO)return toast("El retiro mínimo es "+_money(MONTO_MIN_RETIRO)+".");
   if(String(destino).trim().length<6)return toast("El alias/CBU de destino es muy corto.");
   if(String(titular).trim().length<3)return toast("Indicá el titular de la cuenta (mínimo 3 letras).");
   const btn=$("btnEnviarRetiro");
@@ -1460,6 +1472,7 @@ async function enviarSolicitudRetiro(){
   if(chatId){state.chatId=String(chatId);localStorage.setItem("bet300_chat_id",state.chatId);}
   if(chatToken){state.chatToken=String(chatToken);localStorage.setItem("bet300_chat_token",state.chatToken);}
   setPendiente("RETIRO",String(solicitudId||"pendiente-local-"+Date.now()));
+  try{localStorage.setItem(_retiroKey(),String(Date.now()));}catch(_e){} // arranca el cooldown de 24h (1 retiro/día)
   toast("Retiro enviado a revisión 🕓");haptic([20,30,20]);
   renderHome();
   goEstado();
