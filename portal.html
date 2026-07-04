@@ -1149,18 +1149,64 @@ function hideOperatorBubble(){ const el=document.getElementById("opBubble"); if(
 function bonoBienvenidaEstado(){
   let app=false, push=false;
   try{ app=(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true; }catch(_e){}
+  if(!app){ try{ app = localStorage.getItem("bet300_app_instalada")==="1"; }catch(_e){} } // recordamos el "instalada" aunque abra en pestaña
   try{ push=(typeof Notification!=="undefined" && Notification.permission==="granted"); }catch(_e){}
   return {app, push};
 }
+// Bono ADITIVO: base 20% · +10% notificaciones · +20% app → 50% máximo (20/30/40/50).
+function bonoPctFromEstado(e){ let p=20; if(e.push)p+=10; if(e.app)p+=20; return p; }
 function renderBonoBienvenidaCard(){
   if(!state.promoActiva) return ""; // solo oficinas con la promo activada (alta o activación posterior)
   const e=bonoBienvenidaEstado();
-  const chip=(ok)=> ok?'<span style="color:#22c55e;font-weight:800">Sí ✅</span>':'<span style="color:#fbbf24;font-weight:800">Todavía no ⏳</span>';
+  const pct=bonoPctFromEstado(e);
+  const falta = !e.app || !e.push;
+  const chip=(ok)=> ok?'<span style="color:#22c55e;font-weight:800">Listo ✅</span>':'<span style="color:#fbbf24;font-weight:800">Pendiente ⏳</span>';
+  const btnInstalar = !e.app ? `<button class="action-btn" style="margin-top:8px" onclick="instalarAppPromo()">📱 Instalar la app · +20%</button>` : "";
+  const btnNotis    = !e.push ? `<button class="action-btn secondary-btn" style="margin-top:8px" onclick="activarNotisPromo()">🔔 Activar notificaciones · +10%</button>` : "";
+  const cierre = falta
+    ? `<div class="screen-desc" style="margin:10px 0 0">Completá los pasos y subís tu bono. Lo confirma un operador antes de acreditarlo.</div>`
+    : `<div class="screen-desc" style="margin:10px 0 0">🏆 ¡Máximo desbloqueado! Un operador confirma tu bono y lo acredita.</div>`;
   return `<div class="form-card" style="margin-top:12px;border:1px solid rgba(124,196,255,.25)">
-    <div style="font-weight:900;font-size:15px;margin-bottom:3px">🎁 Bono de bienvenida</div>
-    <div class="screen-desc" style="margin:0 0 8px">Instalá la app y aceptá notificaciones para participar. Lo activa un operador.</div>
-    <div style="font-size:13px;line-height:1.8">📱 App instalada: ${chip(e.app)}<br>🔔 Notificaciones: ${chip(e.push)}<br>Estado: <b>pendiente de validación manual</b></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="font-weight:900;font-size:15px">🎁 Bono de bienvenida</div>
+      <div style="font-weight:900;font-size:18px;color:#7cc4ff">${pct}%<span style="font-size:11px;color:var(--muted);font-weight:700"> / 50%</span></div>
+    </div>
+    <div class="screen-desc" style="margin:4px 0 8px">Arrancás con <b>20%</b>. Sumá <b>+10%</b> activando notificaciones y <b>+20%</b> instalando la app → hasta <b>50%</b>.</div>
+    <div style="font-size:13px;line-height:1.9">📱 App instalada: ${chip(e.app)}<br>🔔 Notificaciones: ${chip(e.push)}</div>
+    ${btnInstalar}${btnNotis}
+    ${cierre}
   </div>`;
+}
+// Instalar la PWA desde el botón del bono (reusa el prompt nativo capturado; fallback a instrucciones).
+async function instalarAppPromo(){
+  if(window._deferredInstallPrompt){
+    try{
+      window._deferredInstallPrompt.prompt();
+      const {outcome}=await window._deferredInstallPrompt.userChoice;
+      window._deferredInstallPrompt=null;
+      if(outcome==="accepted"){
+        try{ localStorage.setItem("bet300_app_instalada","1"); }catch(_e){}
+        try{ if(state.usuario && state.pcCodigo) rpc("landing_marcar_app_instalada",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario}); }catch(_e){}
+        toast("✅ ¡App instalada! Sumaste +20% a tu bono.");
+      } else { toast("Podés instalarla cuando quieras desde este botón para sumar +20%."); }
+    }catch(_e){ toast("No se pudo abrir la instalación. Probá desde el menú del navegador (Instalar app)."); }
+  } else {
+    const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    toast(ios ? "En iPhone: tocá Compartir ⬆️ y elegí 'Agregar a inicio'." : "Abrí el menú del navegador (⋮) y elegí 'Instalar app' / 'Agregar a pantalla de inicio'.");
+  }
+  setTimeout(()=>{ try{ renderHome(); }catch(_e){} }, 400);
+}
+// Activar notificaciones desde el botón del bono (pide permiso + registra push).
+async function activarNotisPromo(){
+  try{
+    if(typeof Notification==="undefined"){ toast("Tu navegador no soporta notificaciones."); return; }
+    let perm=Notification.permission;
+    if(perm==="default"){ try{ perm=await Notification.requestPermission(); }catch(_e){} }
+    if(perm==="granted"){ try{ await subscribePush(); }catch(_e){} toast("🔔 ¡Notificaciones activas! Sumaste +10% a tu bono."); }
+    else if(perm==="denied"){ toast("Están bloqueadas. Activalas desde los permisos del navegador para sumar el +10%."); }
+    else { toast("Activá las notificaciones para sumar tu bono."); }
+  }catch(_e){}
+  setTimeout(()=>{ try{ renderHome(); }catch(_e){} }, 300);
 }
 
 async function subirImagen(file){
@@ -1602,8 +1648,14 @@ function marcarAppInstalada(){
     }
   }catch(_e){}
 }
+// Capturamos el prompt de instalación para dispararlo desde el botón del bono.
+window._deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt', function(ev){ ev.preventDefault(); window._deferredInstallPrompt=ev; });
 window.addEventListener('appinstalled', function(){
+  window._deferredInstallPrompt=null;
+  try{ localStorage.setItem("bet300_app_instalada","1"); }catch(_e){}
   try{ if(state.usuario && state.pcCodigo) rpc("landing_marcar_app_instalada",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario}); }catch(_e){}
+  try{ if(state.screen==="home") renderHome(); }catch(_e){}
 });
 
 window.addEventListener("load",async()=>{
