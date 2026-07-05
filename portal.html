@@ -521,7 +521,7 @@ async function rpc(fn,params){if(!sb)return{data:null,error:{message:"Supabase n
 function normalize(data){if(!data)return null;if(Array.isArray(data))return data[0]||null;if(data.data)return Array.isArray(data.data)?data.data[0]:data.data;return data}
 
 // ── Chat poll ─────────────────────────────────────────────────────────────
-function startChatPoll(){stopChatPoll();if(!state.chatId)return;chatPollTimer=setInterval(pollOperatorMessages,3500);}
+function startChatPoll(){stopChatPoll();if(!state.chatId)return;chatPollTimer=setInterval(pollOperatorMessages,5000);}
 function stopChatPoll(){if(chatPollTimer){clearInterval(chatPollTimer);chatPollTimer=null;}}
 async function pollOperatorMessages(){
   if(!state.chatId||!$("widget")?.classList.contains("open"))return;
@@ -546,7 +546,7 @@ function savePortalThreadSeen(){
 function startPortalThreadPoll(){
   stopPortalThreadPoll();
   if(!state.usuario)return;
-  portalThreadTimer=setInterval(pollPortalThread,3500);
+  portalThreadTimer=setInterval(pollPortalThread,5000);
   setTimeout(pollPortalThread,900);
 }
 function stopPortalThreadPoll(){
@@ -885,7 +885,7 @@ function stopEstadoPoll(){if(estadoPollTimer){clearInterval(estadoPollTimer);est
 function startEstadoPoll(){
   stopEstadoPoll();
   if(!solicitudIdValido())return;
-  estadoPollTimer=setInterval(()=>consultarEstadoSolicitud(false),4000);
+  estadoPollTimer=setInterval(()=>consultarEstadoSolicitud(false),6000);
   setTimeout(()=>consultarEstadoSolicitud(false),800);
 }
 function setEstadoLive(txt){const e=$("estadoLive");if(e)e.innerHTML='<span class="live-dot"></span>'+esc(txt);}
@@ -1694,6 +1694,20 @@ function mostrarActualizarPWA(reg){
     catch(_e){ window.location.reload(); }
   };
 }
+// Rendimiento: cuando la app pasa a segundo plano (oculta), pausamos TODOS los polls para no
+// pegarle a Supabase al pedo; al volver, reanudamos según el estado (widget abierto / pendiente).
+function _reanudarPollsVisibles(){
+  const abierto = $("widget")?.classList.contains("open");
+  if(abierto){
+    if(state.chatId) startChatPoll();
+    if(state.usuario) startPortalThreadPoll();
+  }
+  if(tieneSolicitudPendiente()) startEstadoPoll();
+}
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState==="hidden"){ stopChatPoll(); stopPortalThreadPoll(); stopEstadoPoll(); }
+  else { _reanudarPollsVisibles(); }
+});
 window.addEventListener("load",async()=>{
   if("serviceWorker" in navigator){
     navigator.serviceWorker.register("/sw.js").then(reg=>{
