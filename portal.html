@@ -1286,7 +1286,7 @@ function billeteraPayloadPlano(){
 // ── Cargar (pantalla) ──────────────────────────────────────────────────────
 const MONTOS_RAPIDOS=[2000,5000,10000,20000,50000];
 // Mínimos y regla de 1 retiro por día (24h) desde el portal.
-const MONTO_MIN_CARGA=2000, MONTO_MIN_RETIRO=5000, RETIRO_COOLDOWN_MS=24*60*60*1000;
+const MONTO_MIN_CARGA=1000, MONTO_MIN_RETIRO=5000, RETIRO_COOLDOWN_MS=24*60*60*1000;
 const _money=v=>"$"+Number(v).toLocaleString("es-AR");
 function _fmtRestante(ms){const h=Math.floor(ms/3600000),m=Math.round((ms%3600000)/60000);return h>0?(h+"h"+(m>0?" "+m+"m":"")):((m>0?m:1)+"m");}
 // Cooldown de retiro keyeado por usuario (no bloquea a otro usuario en el mismo dispositivo).
