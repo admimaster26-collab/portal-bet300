@@ -1671,9 +1671,40 @@ window.addEventListener('appinstalled', function(){
   try{ if(state.screen==="home") renderHome(); }catch(_e){}
 });
 
+// Banner "hay versión nueva · Actualizar" para la PWA instalada. Aparece solo cuando el SW nuevo
+// quedó en espera (o sea, ya había una versión corriendo). No molesta a quien recién instala.
+function mostrarActualizarPWA(reg){
+  if(document.getElementById("swUpdateBanner"))return;
+  const b=document.createElement("div");
+  b.id="swUpdateBanner";
+  b.style.cssText="position:fixed;left:12px;right:12px;bottom:calc(14px + var(--safe-b));z-index:99999;background:#11203a;border:1px solid var(--gold-deep);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 12px 34px rgba(0,0,0,.55)";
+  b.innerHTML='<div style="flex:1;font-size:13px;font-weight:700;color:#eaf2ff;line-height:1.35">🔄 Hay una versión nueva del cajero.</div>'
+    +'<button id="swUpdBtn" style="background:var(--gold);color:#1a1500;border:none;border-radius:10px;padding:9px 15px;font-weight:800;cursor:pointer;flex-shrink:0">Actualizar</button>';
+  document.body.appendChild(b);
+  document.getElementById("swUpdBtn").onclick=function(){
+    window._swWillReload=true; this.textContent="Actualizando…"; this.disabled=true;
+    try{ if(reg&&reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"}); else window.location.reload(); }
+    catch(_e){ window.location.reload(); }
+  };
+}
 window.addEventListener("load",async()=>{
   if("serviceWorker" in navigator){
-    navigator.serviceWorker.register("/sw.js").catch(e=>console.warn("[SW]",e));
+    navigator.serviceWorker.register("/sw.js").then(reg=>{
+      // ¿ya hay una versión nueva esperando de antes?
+      if(reg.waiting && navigator.serviceWorker.controller) mostrarActualizarPWA(reg);
+      // detectar cuando se instala una versión nueva mientras la app está abierta
+      reg.addEventListener("updatefound",()=>{
+        const nw=reg.installing; if(!nw)return;
+        nw.addEventListener("statechange",()=>{
+          if(nw.state==="installed" && navigator.serviceWorker.controller) mostrarActualizarPWA(reg);
+        });
+      });
+      // chequear si hay update cada 1h y cada vez que vuelven a la app
+      setInterval(()=>{ reg.update().catch(()=>{}); }, 60*60*1000);
+      document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") reg.update().catch(()=>{}); });
+    }).catch(e=>console.warn("[SW]",e));
+    // recargar SOLO cuando el usuario aceptó actualizar (no en la primera instalación)
+    navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(window._swWillReload) window.location.reload(); });
   }
   $("appFrame").src=PLATFORM_URL;
   restoreLauncherMini();

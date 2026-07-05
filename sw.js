@@ -1,17 +1,23 @@
 /* ============================================================
    BET300 · Service Worker — PWA + Web Push
-   Versión: 1.0.0
+   Versión: 1.1.0   (bumpear en cada deploy del portal → dispara el aviso "Actualizar")
    ============================================================ */
-const CACHE = 'bet300-pwa-v1';
+const CACHE = 'bet300-pwa-v2';
 const SHELL = ['/', '/portal.html', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 // ── Instalación: cachear shell ────────────────────────────────
+// OJO: NO llamamos skipWaiting() acá. Así, cuando hay una versión nueva y ya existe un SW
+// controlando, el nuevo queda "waiting" y el portal muestra el banner "Actualizar" (el usuario
+// decide cuándo). En la PRIMERA instalación (sin SW previo) igual activa al toque (no hay waiting).
 self.addEventListener('install', ev => {
   ev.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(SHELL).catch(() => {}))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE).then(c => c.addAll(SHELL).catch(() => {}))
   );
+});
+
+// El portal pide activar la versión nueva cuando el usuario toca "Actualizar".
+self.addEventListener('message', ev => {
+  if (ev.data && ev.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // ── Activación: limpiar caches viejos ────────────────────────
