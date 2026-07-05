@@ -855,10 +855,14 @@ function limpiarPendienteManual(){
   </div>`);
 }
 function _confirmarLimpiarPendiente(){
+  const eraRetiro = String(state.pendingTipo||"").toUpperCase()==="RETIRO";
   stopChatPoll();stopEstadoPoll();
   Object.assign(state,{pendingTipo:"",solicitudId:"",chatId:"",chatToken:"",seenMsgIds:new Set()});
   ["bet300_pending_tipo","bet300_solicitud_id","bet300_chat_id","bet300_chat_token","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
-  toast("Estado local limpiado. Ya podés iniciar una nueva solicitud.");
+  // El retiro se canceló SIN efectuarse (este botón solo aparece mientras está pendiente/sin pagar)
+  // → liberamos el cooldown de 24h para que pueda enviar uno nuevo (dato/monto corregido).
+  if(eraRetiro){ try{localStorage.removeItem(_retiroKey());}catch(_e){} }
+  toast(eraRetiro?"Retiro cancelado. Ya podés enviar uno nuevo.":"Estado local limpiado. Ya podés iniciar una nueva solicitud.");
   goHome();
 }
 
@@ -980,8 +984,11 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
     if(rechazadoStreak < 3){setEstadoLive("⏳ En verificación");return "PENDIENTE";}
     stopEstadoPoll();
     rechazadoStreak=0;
+    const eraRetiro = String(state.pendingTipo||"").toUpperCase()==="RETIRO";
     state.pendingTipo="";state.solicitudId="";
     ["bet300_pending_tipo","bet300_solicitud_id","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
+    // Retiro rechazado/cancelado por el operador → no se efectuó → liberar el cooldown de 24h.
+    if(eraRetiro){ try{localStorage.removeItem(_retiroKey());}catch(_e){} }
     const s=$("screenEstado");
     if(s)s.innerHTML=`<div class="screen-title">Estado</div>
       <div class="estado-card bad">
