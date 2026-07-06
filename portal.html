@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0c">
+<!-- Preconexión temprana a la plataforma (iframe) y a Supabase → arranca DNS/TLS antes de necesitarlos. -->
+<link rel="preconnect" href="https://bet-300.pw">
+<link rel="dns-prefetch" href="https://bet-300.pw">
+<link rel="preconnect" href="https://pjvvyvfcwjoocjqvdror.supabase.co" crossorigin>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1727,7 +1731,9 @@ window.addEventListener("load",async()=>{
     // recargar SOLO cuando el usuario aceptó actualizar (no en la primera instalación)
     navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(window._swWillReload) window.location.reload(); });
   }
-  $("appFrame").src=PLATFORM_URL;
+  // El iframe ya trae src en el HTML (carga desde el parseo, lo antes posible). Solo lo seteamos
+  // acá si quedó vacío → así NO recargamos la plataforma (antes se cargaba 2 veces = doble espera).
+  try{ const _af=$("appFrame"); if(_af && (!_af.getAttribute("src") || _af.getAttribute("src")==="about:blank")) _af.src=PLATFORM_URL; }catch(_e){}
   restoreLauncherMini();
   await initRoute();
   await cargarPromoActiva();
