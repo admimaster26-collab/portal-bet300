@@ -57,6 +57,12 @@ button,input,textarea{font-family:var(--font)}
 .launcher.mini .fb-text{display:none}
 .launcher-min{position:fixed;right:13px;bottom:calc(120px + var(--safe-b));z-index:21;width:26px;height:26px;border-radius:999px;border:1px solid var(--gold-deep);background:#1a1a20;color:var(--gold-2);font-size:17px;font-weight:900;line-height:22px;text-align:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5);padding:0}
 .launcher-min:active{transform:scale(.92)}
+/* Botón "pantalla completa": abre la plataforma en pestaña propia (first-party) para que las
+   imágenes carguen en TODOS los navegadores (Safari/Samsung/Firefox cortan las cookies de
+   terceros dentro del iframe). Bottom-left para no chocar con el launcher del cajero. */
+.fullscreen-btn{position:fixed;left:14px;bottom:calc(78px + var(--safe-b));z-index:20;display:flex;align-items:center;gap:6px;padding:9px 13px;border-radius:999px;border:1px solid var(--gold-deep);background:#1a1a20;color:var(--gold-2);font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.fullscreen-btn:active{transform:scale(.96)}
+.fullscreen-btn .fs-ico{font-size:15px;line-height:1}
 
 /* ── Scrim (solo desktop) ───────────────────────────────────────────────── */
 .scrim{position:fixed;inset:0;z-index:25;background:rgba(3,3,6,.6);opacity:0;pointer-events:none;transition:opacity .26s}
@@ -253,6 +259,9 @@ textarea{resize:vertical;min-height:76px}
   <span id="floatUnread" class="float-badge hidden">0</span>
 </button>
 <button id="floatMin" class="launcher-min" onclick="toggleLauncherMini(event)" aria-label="Minimizar o restaurar el cajero" title="Minimizar / restaurar">–</button>
+<button id="fullscreenBtn" class="fullscreen-btn" onclick="abrirPlataformaFullscreen()" aria-label="Abrir la plataforma a pantalla completa" title="Si no ves bien los juegos, abrí la plataforma a pantalla completa">
+  <span class="fs-ico">⛶</span><span>Pantalla completa</span>
+</button>
 
 <div id="scrim" class="scrim" onclick="toggleWidget(false)"></div>
 
@@ -344,6 +353,25 @@ function tiempoEspera(){
   return `Hace ${hs} hora${hs>1?"s":""}`;
 }
 function toast(t){const el=$("toast");el.textContent=t;el.classList.add("show");setTimeout(()=>el.classList.remove("show"),2400)}
+
+// Abre la plataforma en una pestaña propia (first-party) → las imágenes cargan en TODOS los
+// navegadores. Dentro del iframe es contenido de terceros y Safari/Samsung/Firefox le cortan la
+// cookie de sesión → imágenes rotas. Top-level = como entrar por el link directo (que sí anda).
+// No podemos poner un "volver" en la página de la plataforma (es cross-origin): el regreso es la
+// flecha "←"/"Listo" de la Custom Tab (PWA) o el cambiador de pestañas. Del lado del portal, al
+// volver queda todo a mano; la primera vez avisamos cómo regresar.
+function abrirPlataformaFullscreen(){
+  let w=null;
+  try{ w=window.open(PLATFORM_URL,"_blank","noopener"); }catch(_e){}
+  try{
+    if(!localStorage.getItem("bet300_fs_hint")){
+      localStorage.setItem("bet300_fs_hint","1");
+      setTimeout(function(){ try{ toast('Para volver al portal, tocá la flecha ← / “Listo” de arriba.'); }catch(_e){} },500);
+    }
+  }catch(_e){}
+  // Si el navegador bloqueó la ventana emergente, caemos a navegación directa (igual first-party).
+  if(!w){ try{ location.href=PLATFORM_URL; }catch(_e){} }
+}
 function haptic(ms){try{navigator.vibrate&&navigator.vibrate(ms||10)}catch(e){}}
 
 // ── Monitor de conexión ────────────────────────────────────────────────────
