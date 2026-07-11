@@ -63,6 +63,18 @@ button,input,textarea{font-family:var(--font)}
 .fullscreen-btn{position:fixed;left:14px;bottom:calc(78px + var(--safe-b));z-index:20;display:flex;align-items:center;gap:6px;padding:9px 13px;border-radius:999px;border:1px solid var(--gold-deep);background:#1a1a20;color:var(--gold-2);font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.5)}
 .fullscreen-btn:active{transform:scale(.96)}
 .fullscreen-btn .fs-ico{font-size:15px;line-height:1}
+/* Launcher auto-detectado: pantalla de entrada para navegadores que rompen las imágenes del
+   iframe (iPhone/Safari, Samsung Internet, Firefox). Los manda a pantalla completa (first-party)
+   y deja el cajero a un toque, así no ven el iframe con imágenes rotas ("rechazo visual"). */
+.launcher-overlay{position:fixed;inset:0;z-index:40;background:radial-gradient(120% 100% at 50% 0%,#15161d,#0a0a0e 70%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:30px 24px;text-align:center}
+.launcher-overlay.show{display:flex}
+.lo-logo{font-size:14px;font-weight:900;letter-spacing:.6px;color:var(--gold-2)}
+.lo-title{font-size:22px;font-weight:900;color:var(--text);line-height:1.22;max-width:340px}
+.lo-sub{font-size:13px;color:var(--muted);max-width:320px;line-height:1.5;margin-bottom:6px}
+.lo-btn{width:100%;max-width:340px;padding:16px;border-radius:14px;border:1px solid var(--gold-deep);background:var(--gold);color:#1a1a20;font-size:16px;font-weight:900;cursor:pointer}
+.lo-btn:active{transform:scale(.98)}
+.lo-btn.sec{background:var(--surface-2);color:var(--gold-2)}
+.lo-dismiss{margin-top:4px;background:none;border:0;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer}
 
 /* ── Scrim (solo desktop) ───────────────────────────────────────────────── */
 .scrim{position:fixed;inset:0;z-index:25;background:rgba(3,3,6,.6);opacity:0;pointer-events:none;transition:opacity .26s}
@@ -263,6 +275,15 @@ textarea{resize:vertical;min-height:76px}
   <span class="fs-ico">⛶</span><span>Pantalla completa</span>
 </button>
 
+<div id="launcherOverlay" class="launcher-overlay">
+  <div class="lo-logo">🎰 BET300</div>
+  <div class="lo-title">Entrá a la plataforma a pantalla completa</div>
+  <div class="lo-sub">En tu navegador los juegos se ven mejor a pantalla completa. Entrá acá y volvés al portal cuando quieras con la flecha ← / “Listo” de arriba.</div>
+  <button class="lo-btn" onclick="launcherJugar()">🎮 Entrar a la plataforma</button>
+  <button class="lo-btn sec" onclick="launcherCajero()">💬 Abrir cajero · Cargar / Retirar</button>
+  <button class="lo-dismiss" onclick="cerrarLauncher()">Seguir en la vista normal</button>
+</div>
+
 <div id="scrim" class="scrim" onclick="toggleWidget(false)"></div>
 
 <section id="widget" class="panel" role="dialog" aria-modal="true" aria-label="Cajero BET300">
@@ -372,6 +393,32 @@ function abrirPlataformaFullscreen(){
   // Si el navegador bloqueó la ventana emergente, caemos a navegación directa (igual first-party).
   if(!w){ try{ location.href=PLATFORM_URL; }catch(_e){} }
 }
+
+// ── Launcher auto-detectado (punto 4) ──────────────────────────────────────
+// Navegadores que bloquean cookies de terceros en el iframe → las imágenes de los juegos NO
+// cargan embebidas (Safari/iOS, Samsung Internet, Firefox). Para esos mostramos un launcher que
+// los lleva a pantalla completa (first-party) y deja el cajero a un toque.
+function _navBloqueaImagenes(){
+  try{
+    const ua=navigator.userAgent||"";
+    const iOS=/iphone|ipad|ipod/i.test(ua) || (/Macintosh/i.test(ua) && (navigator.maxTouchPoints||0)>1);
+    const samsung=/SamsungBrowser/i.test(ua);
+    const firefox=/Firefox|FxiOS/i.test(ua);
+    // Safari "de verdad" (no Chrome/Edge/Opera/CriOS/FxiOS que también matchean 'Safari')
+    const safari=/Safari/i.test(ua) && !/Chrome|CriOS|Chromium|Edg|OPR|SamsungBrowser|FxiOS|Android/i.test(ua);
+    return iOS || samsung || firefox || safari;
+  }catch(_e){ return false; }
+}
+function mostrarLauncherSiHaceFalta(){
+  try{
+    if(!_navBloqueaImagenes()) return;
+    if(sessionStorage.getItem("bet300_launcher_seen")==="1") return;
+    $("launcherOverlay")?.classList.add("show");
+  }catch(_e){}
+}
+function cerrarLauncher(){ try{ $("launcherOverlay")?.classList.remove("show"); sessionStorage.setItem("bet300_launcher_seen","1"); }catch(_e){} }
+function launcherJugar(){ cerrarLauncher(); abrirPlataformaFullscreen(); }
+function launcherCajero(){ cerrarLauncher(); try{ toggleWidget(true); }catch(_e){} }
 function haptic(ms){try{navigator.vibrate&&navigator.vibrate(ms||10)}catch(e){}}
 
 // ── Monitor de conexión ────────────────────────────────────────────────────
@@ -415,11 +462,13 @@ function goEstado(){showScreen("estado");renderEstado();}
 function goChat(){ try{hideOperatorBubble();}catch(_e){} showScreen("chat");renderChat();}
 // Alta de usuario NUEVO: abre el chat y auto-envía un mensaje predeterminado con el apodo y el
 // teléfono que el cliente ingresó → el operador ya sabe que es alta y con qué datos vincular.
-function escribirSoporteAlta(){
+function escribirSoporteAlta(tipo){
   goChat();
   if(state._altaSoporteEnviado) return; // ya lo mandamos, no duplicar
   const apodo=(state.usuario||"").trim(), tel=(state.telefono||"").trim();
-  const msg=`Hola 👋 Quiero crear usuario.${apodo?` Apodo: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`;
+  const msg = (tipo==="ayuda")
+    ? `Hola 👋 Tengo usuario pero no puedo entrar.${apodo?` Usuario: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`
+    : `Hola 👋 Soy nuevo, quiero registrarme (bono de bienvenida).${apodo?` Apodo: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`;
   state._altaSoporteEnviado=true;
   try{ addMsg(esc(msg),"user"); state.shownTexts.add("u|"+msg.substring(0,200)); }catch(_e){}
   setTimeout(()=>{ try{ enviarMensajeSoporte(msg, null); }catch(_e){} }, 250);
@@ -668,16 +717,21 @@ function renderHome(){
   const home=$("screenHome");
   if(!home)return;
   if(!state.usuario){
+    state._gateModo="login";
     home.innerHTML=`<div class="gate-badge">🎰 BET300 · Cajero</div>
       <div class="gate-title">Bienvenido 👋</div>
-      <div class="gate-txt">Para cargar, retirar o pedir soporte, ingresá tu usuario de plataforma y tu teléfono.</div>
+      <div class="gate-txt" id="gateTxt">Para cargar, retirar o pedir soporte, ingresá tu usuario de plataforma y tu teléfono.</div>
       <label id="lblUsuarioInicial">Usuario de plataforma</label>
       <input id="usuarioInicial" placeholder="Ej: usuario123" autocomplete="username" inputmode="text" onkeydown="if(event.key==='Enter')document.getElementById('telefonoInicial').focus()">
       <label>Teléfono (WhatsApp, con código de área)</label>
-      <input id="telefonoInicial" placeholder="Ej: 11 2345 6789" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter')(state._modoAltaNueva?pedirAltaSoporte():guardarUsuarioInicial())">
-      <button class="action-btn" id="gateBtn" onclick="state._modoAltaNueva?pedirAltaSoporte():guardarUsuarioInicial()">Continuar</button>
+      <input id="telefonoInicial" placeholder="Ej: 11 2345 6789" inputmode="tel" autocomplete="tel" onkeydown="if(event.key==='Enter')onGateSubmit()">
+      <button class="action-btn" id="gateBtn" onclick="onGateSubmit()">Ingresar al portal</button>
       <div id="gateError" style="display:none;margin-top:12px;background:rgba(255,84,104,.1);border:1px solid rgba(255,84,104,.3);color:#ffb3bd;border-radius:12px;padding:11px;font-size:13px;font-weight:700;line-height:1.45"></div>
-      <button class="link-btn" id="linkAltaNueva" style="margin-top:12px;width:100%;text-align:center" onclick="toggleModoAltaNueva(true)">¿Sos nuevo o no podés entrar? Escribinos 💬</button>
+      <div id="gatePaths" style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
+        <button class="link-btn" id="pathRegistro" style="width:100%;text-align:center" onclick="setGateModo('registro')">✨ Soy nuevo · Registrarme (bono de bienvenida)</button>
+        <button class="link-btn" id="pathAyuda" style="width:100%;text-align:center" onclick="setGateModo('ayuda')">😕 Tengo usuario pero no puedo entrar</button>
+      </div>
+      <button class="link-btn" id="gateVolver" style="display:none;margin-top:12px;width:100%;text-align:center" onclick="setGateModo('login')">‹ Volver a ingresar con mi usuario</button>
       <div class="trust-row">
         <span class="trust">🔒 Datos solo en este equipo</span>
         <span class="trust">⚡ Respuesta al instante</span>
@@ -748,42 +802,83 @@ function _gateError(msg){
   if(e){ e.textContent=msg; e.style.display="block"; }
   else toast(msg);
 }
-// Toggle "Sos nuevo": el campo que normalmente pide el USUARIO real pasa a pedir
-// nombre/apodo (un usuario nuevo todavía no tiene usuario de plataforma).
-function toggleModoAltaNueva(on){
-  state._modoAltaNueva = !!on;
-  const lbl=$("lblUsuarioInicial"), inp=$("usuarioInicial"), link=$("linkAltaNueva"), btn=$("gateBtn");
-  if(on){
-    if(lbl) lbl.textContent="Tu nombre o apodo (sos nuevo)";
-    if(inp){ inp.placeholder="Ej: Juan / Juancito"; }
-    if(link){ link.textContent="Ya tengo usuario · Volver"; link.onclick=function(){toggleModoAltaNueva(false);}; }
-    if(btn) btn.textContent="Enviar y hablar con soporte";
-  } else {
+// Gate de 3 caminos: "login" (ya tengo usuario) · "registro" (soy nuevo, quiero el bono) ·
+// "ayuda" (tengo usuario pero no puedo entrar). Cada uno cambia el texto/label/botón y manda
+// al operador una señal DISTINTA (así no se mezclan altas nuevas con problemas de acceso).
+function setGateModo(modo){
+  state._gateModo = modo || "login";
+  const txt=$("gateTxt"), lbl=$("lblUsuarioInicial"), inp=$("usuarioInicial"), btn=$("gateBtn"),
+        paths=$("gatePaths"), volver=$("gateVolver"), err=$("gateError");
+  if(err) err.style.display="none";
+  if(modo==="registro"){
+    if(txt) txt.innerHTML="Sos nuevo 🎁 Te creamos el usuario y te damos el <b>bono de bienvenida</b>. Dejanos tu nombre o apodo y tu teléfono, y te contactamos.";
+    if(lbl) lbl.textContent="Tu nombre o apodo";
+    if(inp){ inp.placeholder="Ej: Juan / Juancito"; inp.value=""; }
+    if(btn) btn.textContent="Registrarme y hablar con soporte";
+    if(paths) paths.style.display="none";
+    if(volver) volver.style.display="block";
+  } else if(modo==="ayuda"){
+    if(txt) txt.textContent="¿Tenés usuario pero no podés entrar? Contanos tus datos y un operador valida tu cuenta.";
+    if(lbl) lbl.textContent="Tu usuario (si lo tenés)";
+    if(inp){ inp.placeholder="Ej: usuario123"; }
+    if(btn) btn.textContent="Contactar a soporte";
+    if(paths) paths.style.display="none";
+    if(volver) volver.style.display="block";
+  } else { // login
+    if(txt) txt.textContent="Para cargar, retirar o pedir soporte, ingresá tu usuario de plataforma y tu teléfono.";
     if(lbl) lbl.textContent="Usuario de plataforma";
     if(inp){ inp.placeholder="Ej: usuario123"; }
-    if(link){ link.textContent="¿Sos nuevo o no podés entrar? Escribinos 💬"; link.onclick=function(){toggleModoAltaNueva(true);}; }
-    if(btn) btn.textContent="Continuar";
+    if(btn) btn.textContent="Ingresar al portal";
+    if(paths) paths.style.display="flex";
+    if(volver) volver.style.display="none";
   }
-  const err=$("gateError"); if(err) err.style.display="none";
   setTimeout(()=>$("usuarioInicial")?.focus(),50);
+}
+// Despacha el botón principal según el modo del gate.
+function onGateSubmit(){
+  const m=state._gateModo||"login";
+  if(m==="registro") return pedirRegistro();
+  if(m==="ayuda")    return pedirAyudaAcceso();
+  return guardarUsuarioInicial();
 }
 // Canal de soporte/alta SIN validación: para usuarios nuevos (no están en la base) o
 // que recién quieren registrarse (un pariente les pasó el link). Entran al chat directo
 // y el operador los registra/vincula desde el panel. NO pelea con el cotejo.
-function pedirAltaSoporte(){
+function _persistSoporte(){
+  try{
+    localStorage.setItem("bet300_usuario",state.usuario);
+    localStorage.setItem("bet300_telefono",state.telefono);
+    localStorage.setItem("bet300_nivel_acceso","SOPORTE");
+    localStorage.setItem("bet300_motivo_soporte",state.motivoSoporte);
+  }catch(_e){}
+}
+// REGISTRO: usuario NUEVO (publicidad / quiere el bono). Pide nombre/apodo + tel y manda al
+// operador un ticket CLARO de alta nueva con bono. No pelea con el cotejo (no tiene usuario aún).
+function pedirRegistro(){
   const nombre=String($("usuarioInicial")?.value||"").trim();
   const telefono=String($("telefonoInicial")?.value||"").trim();
-  if(!telefono || telefono.replace(/\D/g,"").length<6){ return _gateError("Dejanos tu teléfono (con código de área) para poder contactarte y darte el alta."); }
-  state.usuario = nombre || ("alta-"+telefono.replace(/\D/g,""));
+  if(!telefono || telefono.replace(/\D/g,"").length<6){ return _gateError("Dejanos tu teléfono (con código de área) para crearte el usuario y darte el bono."); }
+  state.usuario = nombre || ("nuevo-"+telefono.replace(/\D/g,""));
   state.telefono = telefono;
   state.nivelAcceso = "SOPORTE";
-  state.motivoSoporte = "Estás en contacto con soporte. Decinos tu usuario (si ya tenés) o contanos que sos nuevo y te registramos.";
-  localStorage.setItem("bet300_usuario",state.usuario);
-  localStorage.setItem("bet300_telefono",state.telefono);
-  localStorage.setItem("bet300_nivel_acceso","SOPORTE");
-  localStorage.setItem("bet300_motivo_soporte",state.motivoSoporte);
+  state.motivoSoporte = "Registro en proceso 🎁 Un operador te crea el usuario y te aplica el bono de bienvenida. Te avisamos por el chat.";
+  _persistSoporte();
   renderHome();
-  escribirSoporteAlta(); // abre el chat Y auto-envía "quiero crear usuario. Apodo: X. Tel: Y"
+  escribirSoporteAlta("registro"); // abre el chat Y auto-envía el pedido de alta nueva
+}
+// AYUDA DE ACCESO: el que YA tiene usuario pero no puede entrar (datos mal / no validado).
+// Ticket distinto para que el operador no lo confunda con un alta nueva.
+function pedirAyudaAcceso(){
+  const usuario=String($("usuarioInicial")?.value||"").trim();
+  const telefono=String($("telefonoInicial")?.value||"").trim();
+  if(!telefono || telefono.replace(/\D/g,"").length<6){ return _gateError("Dejanos tu teléfono (con código de área) para poder ayudarte a validar tu cuenta."); }
+  state.usuario = usuario || ("ayuda-"+telefono.replace(/\D/g,""));
+  state.telefono = telefono;
+  state.nivelAcceso = "SOPORTE";
+  state.motivoSoporte = "Estamos viendo por qué no podés entrar. Un operador valida tus datos y te avisa por el chat.";
+  _persistSoporte();
+  renderHome();
+  escribirSoporteAlta("ayuda"); // abre el chat Y auto-envía el pedido de ayuda de acceso
 }
 async function guardarUsuarioInicial(){
   const usuario=String($("usuarioInicial")?.value||"").trim();
@@ -800,7 +895,7 @@ async function guardarUsuarioInicial(){
     d=normalize(r.data)||r.data||{};
     if(r.error){ console.warn("[vinculo]",r.error); d={verdict:"ERROR"}; }
   }catch(e){ console.warn("[vinculo]",e); d={verdict:"ERROR"}; }
-  if(btn){btn.disabled=false;btn.textContent="Continuar";}
+  if(btn){btn.disabled=false;btn.textContent="Ingresar al portal";}
 
   const verdict=d.verdict||"";
   // CONFLICTO / BLOQUEADO → quedate en el gate (corregí los datos o contactá soporte)
@@ -1768,6 +1863,7 @@ window.addEventListener("load",async()=>{
   setTimeout(marcarAppInstalada, 2500);
   renderHome();
   showScreen("home");
+  mostrarLauncherSiHaceFalta();
   if(tieneSolicitudPendiente()){
     startEstadoPoll();
     chequearPendienteViejo();
