@@ -468,7 +468,7 @@ function escribirSoporteAlta(tipo){
   const apodo=(state.usuario||"").trim(), tel=(state.telefono||"").trim();
   const msg = (tipo==="ayuda")
     ? `Hola 👋 Tengo usuario pero no puedo entrar.${apodo?` Usuario: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`
-    : `Hola 👋 Soy nuevo, quiero registrarme (bono de bienvenida).${apodo?` Apodo: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`;
+    : `Hola 👋 Soy nuevo, quiero registrarme.${apodo?` Apodo: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`;
   state._altaSoporteEnviado=true;
   try{ addMsg(esc(msg),"user"); state.shownTexts.add("u|"+msg.substring(0,200)); }catch(_e){}
   setTimeout(()=>{ try{ enviarMensajeSoporte(msg, null); }catch(_e){} }, 250);
@@ -728,7 +728,7 @@ function renderHome(){
       <button class="action-btn" id="gateBtn" onclick="onGateSubmit()">Ingresar al portal</button>
       <div id="gateError" style="display:none;margin-top:12px;background:rgba(255,84,104,.1);border:1px solid rgba(255,84,104,.3);color:#ffb3bd;border-radius:12px;padding:11px;font-size:13px;font-weight:700;line-height:1.45"></div>
       <div id="gatePaths" style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
-        <button class="link-btn" id="pathRegistro" style="width:100%;text-align:center" onclick="setGateModo('registro')">✨ Soy nuevo · Registrarme (bono de bienvenida)</button>
+        <button class="link-btn" id="pathRegistro" style="width:100%;text-align:center" onclick="setGateModo('registro')">✨ Soy nuevo · Registrarme</button>
         <button class="link-btn" id="pathAyuda" style="width:100%;text-align:center" onclick="setGateModo('ayuda')">😕 Tengo usuario pero no puedo entrar</button>
       </div>
       <button class="link-btn" id="gateVolver" style="display:none;margin-top:12px;width:100%;text-align:center" onclick="setGateModo('login')">‹ Volver a ingresar con mi usuario</button>
@@ -802,7 +802,7 @@ function _gateError(msg){
   if(e){ e.textContent=msg; e.style.display="block"; }
   else toast(msg);
 }
-// Gate de 3 caminos: "login" (ya tengo usuario) · "registro" (soy nuevo, quiero el bono) ·
+// Gate de 3 caminos: "login" (ya tengo usuario) · "registro" (soy nuevo, alta) ·
 // "ayuda" (tengo usuario pero no puedo entrar). Cada uno cambia el texto/label/botón y manda
 // al operador una señal DISTINTA (así no se mezclan altas nuevas con problemas de acceso).
 function setGateModo(modo){
@@ -811,7 +811,7 @@ function setGateModo(modo){
         paths=$("gatePaths"), volver=$("gateVolver"), err=$("gateError");
   if(err) err.style.display="none";
   if(modo==="registro"){
-    if(txt) txt.innerHTML="Sos nuevo 🎁 Te creamos el usuario y te damos el <b>bono de bienvenida</b>. Dejanos tu nombre o apodo y tu teléfono, y te contactamos.";
+    if(txt) txt.textContent="Sos nuevo 👤 Te creamos el usuario. Dejanos tu nombre o apodo y tu teléfono, y un operador te contacta.";
     if(lbl) lbl.textContent="Tu nombre o apodo";
     if(inp){ inp.placeholder="Ej: Juan / Juancito"; inp.value=""; }
     if(btn) btn.textContent="Registrarme y hablar con soporte";
@@ -852,16 +852,18 @@ function _persistSoporte(){
     localStorage.setItem("bet300_motivo_soporte",state.motivoSoporte);
   }catch(_e){}
 }
-// REGISTRO: usuario NUEVO (publicidad / quiere el bono). Pide nombre/apodo + tel y manda al
-// operador un ticket CLARO de alta nueva con bono. No pelea con el cotejo (no tiene usuario aún).
+// REGISTRO: usuario NUEVO (publicidad / derivado). Pide nombre/apodo + tel y manda al operador
+// un ticket CLARO de alta nueva. No pelea con el cotejo (no tiene usuario aún).
+// OJO: el bono de bienvenida NO es de "nuevos" — es para la PRIMERA carga de CUALQUIERA, y lo
+// maneja la tarjeta de bono en Inicio (renderBonoBienvenidaCard). Este flujo NO lo menciona.
 function pedirRegistro(){
   const nombre=String($("usuarioInicial")?.value||"").trim();
   const telefono=String($("telefonoInicial")?.value||"").trim();
-  if(!telefono || telefono.replace(/\D/g,"").length<6){ return _gateError("Dejanos tu teléfono (con código de área) para crearte el usuario y darte el bono."); }
+  if(!telefono || telefono.replace(/\D/g,"").length<6){ return _gateError("Dejanos tu teléfono (con código de área) para crearte el usuario y contactarte."); }
   state.usuario = nombre || ("nuevo-"+telefono.replace(/\D/g,""));
   state.telefono = telefono;
   state.nivelAcceso = "SOPORTE";
-  state.motivoSoporte = "Registro en proceso 🎁 Un operador te crea el usuario y te aplica el bono de bienvenida. Te avisamos por el chat.";
+  state.motivoSoporte = "Registro en proceso · Un operador te crea el usuario y te avisa por el chat.";
   _persistSoporte();
   renderHome();
   escribirSoporteAlta("registro"); // abre el chat Y auto-envía el pedido de alta nueva
