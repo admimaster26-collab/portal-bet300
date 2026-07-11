@@ -221,6 +221,17 @@ textarea{resize:vertical;min-height:76px}
 .step.done .dot{background:var(--green)}
 .bar{width:28px;height:3px;border-radius:3px;background:rgba(255,255,255,.12)}
 .step.done + .bar{background:var(--green)}
+/* Barra de progreso de retiro parcial (punto 3): pagos por partes de un retiro grande */
+.rp-wrap{margin:12px 0 4px;text-align:left}
+.rp-top{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted);margin-bottom:6px}
+.rp-nums{font-weight:800;color:var(--text);font-size:13px}
+.rp-track{height:12px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}
+.rp-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--gold-deep),var(--gold));transition:width .6s ease;min-width:6px}
+.rp-pct{font-size:11px;color:var(--gold-2);margin-top:6px;font-weight:700;text-align:center}
+.rp-list{margin-top:11px;display:flex;flex-direction:column;gap:5px}
+.rp-item{display:flex;justify-content:space-between;gap:8px;font-size:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+.rp-item .rp-m{font-weight:800;color:var(--green);white-space:nowrap}
+.rp-item .rp-f{color:var(--muted)}
 
 /* ── Chat ───────────────────────────────────────────────────────────────── */
 .messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;background:var(--panel)}
@@ -1034,6 +1045,7 @@ function renderEstado(){
           <div class="step on"><span class="dot"></span></div><div class="bar"></div>
           <div class="step"><span class="dot"></span></div>
         </div>
+        <div id="retiroProgreso"></div>
         <div class="estado-tx">Un operador la está revisando. Te avisamos acá y por el chat cuando se confirme.</div>
         <div id="estadoLive" class="estado-live"><span class="live-dot"></span>Consultando estado…</div>
         <div class="estado-actions">
@@ -1044,6 +1056,7 @@ function renderEstado(){
       </div>`;
     if(solicitudIdValido())consultarEstadoSolicitud(true);
     else setEstadoLive("Sin nº de solicitud para consultar");
+    if(String(state.pendingTipo||"").toUpperCase()==="RETIRO") cargarProgresoRetiro().catch(()=>{});
   }else{
     s.innerHTML=`<div class="screen-title">Estado</div>
       <div class="estado-card">
@@ -1131,8 +1144,42 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
     return estado;
   }
   rechazadoStreak=0;
-  setEstadoLive("⏳ En verificación");
+  if(String(state.pendingTipo||"").toUpperCase()==="RETIRO") cargarProgresoRetiro().catch(()=>{});
+  setEstadoLive(estado==="EN_PROCESO"?"💸 Pago en proceso":"⏳ En verificación");
   return estado||"PENDIENTE";
+}
+
+// Retiros parciales (punto 3): trae total/pagado/pagos y pinta la barra + la lista en el estado.
+// Muestra un toast in-app cuando sube lo pagado; el aviso de fondo lo dispara el panel por push.
+async function cargarProgresoRetiro(){
+  const sid=solicitudIdValido(); if(!sid) return;
+  const box=$("retiroProgreso"); if(!box) return;
+  const res=await rpc("landing_retiro_progreso",{p_solicitud_id: typeof sid==="number"?sid:0, p_chat_id:null, p_chat_token:state.chatToken||""});
+  if(res.error) return;
+  const prog=normalize(res.data)||res.data||{};
+  if(!prog || prog.ok===false) return;
+  const total=Number(prog.total||0), pagado=Number(prog.pagado||0);
+  let pct=Number(prog.pct||0); if(pct<0)pct=0; if(pct>100)pct=100;
+  if(!(total>0) || !(pagado>0)){ box.innerHTML=""; return; }   // sin parciales aún → sin barra
+  try{
+    const k="bet300_retiro_pagado_"+sid, last=Number(localStorage.getItem(k)||0);
+    if(pagado>last){ localStorage.setItem(k,String(pagado));
+      if(last>0) toast("💸 Pago parcial: +"+_money(pagado-last)+" · van "+_money(pagado)+" de "+_money(total)); }
+  }catch(_e){}
+  try{ const s=$("screenEstado"); const h=s&&s.querySelector(".estado-h"); if(h)h.textContent="Retiro en proceso";
+       const sub=s&&s.querySelector(".estado-sub"); if(sub)sub.textContent="Te lo estamos pagando por partes"; }catch(_e){}
+  let pagos=prog.pagos; if(typeof pagos==="string"){ try{pagos=JSON.parse(pagos);}catch(_e){pagos=[];} } if(!Array.isArray(pagos)) pagos=[];
+  const lista=pagos.slice().reverse().map(p=>{
+    const m=_money(Number(p.monto||0));
+    let f=""; try{ f=new Date(p.fecha).toLocaleString("es-AR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}); }catch(_e){}
+    return `<div class="rp-item"><span class="rp-m">+${m}</span><span class="rp-f">${esc(f)}</span></div>`;
+  }).join("");
+  box.innerHTML=`<div class="rp-wrap">
+    <div class="rp-top"><span>Pagado</span><span class="rp-nums">${_money(pagado)} / ${_money(total)}</span></div>
+    <div class="rp-track"><div class="rp-fill" style="width:${pct}%"></div></div>
+    <div class="rp-pct">${pct}% · faltan ${_money(Math.max(total-pagado,0))}</div>
+    ${lista?`<div class="rp-list">${lista}</div>`:""}
+  </div>`;
 }
 async function verEstado(){
   if($("screenEstado").classList.contains("hidden"))goEstado();
