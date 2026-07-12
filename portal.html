@@ -479,7 +479,9 @@ function escribirSoporteAlta(tipo){
   const apodo=(state.usuario||"").trim(), tel=(state.telefono||"").trim();
   const msg = (tipo==="ayuda")
     ? `Hola 👋 Tengo usuario pero no puedo entrar.${apodo?` Usuario: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`
-    : `Hola 👋 Soy nuevo, quiero registrarme.${apodo?` Apodo: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`;
+    : (tipo==="registro")
+    ? `Hola 👋 Soy nuevo, quiero registrarme.${apodo?` Apodo: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`
+    : `Hola 👋 Necesito ayuda con mi cuenta.${apodo?` Usuario: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`;
   state._altaSoporteEnviado=true;
   try{ addMsg(esc(msg),"user"); state.shownTexts.add("u|"+msg.substring(0,200)); }catch(_e){}
   setTimeout(()=>{ try{ enviarMensajeSoporte(msg, null); }catch(_e){} }, 250);
@@ -1079,6 +1081,7 @@ function limpiarPendienteAprobado(obs){
   state.pendingTipo="";state.solicitudId="";state.chatId="";state.chatToken="";state.seenMsgIds=new Set();state.shownTexts=new Set();
   ["bet300_pending_tipo","bet300_solicitud_id","bet300_chat_id","bet300_chat_token","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
   const esRetiro=tipoFinal==="RETIRO";
+  if(!esRetiro){ try{ localStorage.setItem("bet300_bono_usado","1"); }catch(_e){} } // 1ª carga acreditada → el bono de ingreso ya se usó → la tarjeta del bono desaparece
   const titulo=esRetiro?"¡Retiro procesado!":"¡Carga acreditada!";
   const sub=esRetiro?"Revisá tu cuenta bancaria.":"Ya podés jugar.";
   const s=$("screenEstado");
@@ -1145,7 +1148,14 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
   }
   rechazadoStreak=0;
   if(String(state.pendingTipo||"").toUpperCase()==="RETIRO") cargarProgresoRetiro().catch(()=>{});
-  setEstadoLive(estado==="EN_PROCESO"?"💸 Pago en proceso":"⏳ En verificación");
+  // Retiro EN_PROCESO = pago por partes → pantalla claramente distinta a un retiro normal demorado
+  // (esto anda solo con landing_estado_solicitud_segura; la barra detallada requiere landing_retiro_progreso).
+  if(estado==="EN_PROCESO"){
+    try{ const s=$("screenEstado"); const h=s&&s.querySelector(".estado-h"); if(h)h.textContent="🔄 Retiro en proceso";
+         const sub=s&&s.querySelector(".estado-sub"); if(sub)sub.textContent="Te lo estamos pagando por partes — vas a ver cada pago acá";
+         const tx=s&&s.querySelector(".estado-tx"); if(tx)tx.textContent="Tu retiro es grande y lo abonamos por tramos. Cada transferencia aparece abajo y te avisamos."; }catch(_e){}
+  }
+  setEstadoLive(estado==="EN_PROCESO"?"💸 Te estamos pagando por partes":"⏳ En verificación");
   return estado||"PENDIENTE";
 }
 
@@ -1341,6 +1351,19 @@ function bonoPctFromEstado(e){ let p=20; if(e.push)p+=10; if(e.app)p+=20; return
 function renderBonoBienvenidaCard(){
   if(!state.promoActiva) return ""; // solo oficinas con la promo activada (alta o activación posterior)
   const e=bonoBienvenidaEstado();
+  // Si el usuario YA usó su bono de ingreso (primera carga acreditada), ocultamos la tarjeta del
+  // bono (%) y dejamos SOLO los botones de instalar app / activar notificaciones (valor continuo).
+  let bonoUsado=false; try{ bonoUsado = localStorage.getItem("bet300_bono_usado")==="1"; }catch(_e){}
+  if(bonoUsado){
+    const bI = !e.app  ? `<button class="action-btn" style="margin-top:8px" onclick="instalarAppPromo()">📱 Instalar la app</button>` : "";
+    const bN = !e.push ? `<button class="action-btn secondary-btn" style="margin-top:8px" onclick="activarNotisPromo()">🔔 Activar notificaciones</button>` : "";
+    if(!bI && !bN) return ""; // ya instaló y activó → nada que ofrecer
+    return `<div class="form-card" style="margin-top:12px;border:1px solid rgba(124,196,255,.2)">
+      <div style="font-weight:800;font-size:14px">📲 Mejorá tu experiencia</div>
+      <div class="screen-desc" style="margin:4px 0 6px">Instalá la app y activá las notificaciones para enterarte al instante de tus cargas y retiros.</div>
+      ${bI}${bN}
+    </div>`;
+  }
   const pct=bonoPctFromEstado(e);
   const falta = !e.app || !e.push;
   const chip=(ok)=> ok?'<span style="color:#22c55e;font-weight:800">Listo ✅</span>':'<span style="color:#fbbf24;font-weight:800">Pendiente ⏳</span>';
