@@ -481,6 +481,8 @@ function escribirSoporteAlta(tipo){
     ? `Hola 👋 Tengo usuario pero no puedo entrar.${apodo?` Usuario: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`
     : (tipo==="registro")
     ? `Hola 👋 Soy nuevo, quiero registrarme.${apodo?` Apodo: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`
+    : (tipo==="validar")
+    ? `Hola 👋 Quiero validar mi acceso para operar.${apodo?` Usuario: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`
     : `Hola 👋 Necesito ayuda con mi cuenta.${apodo?` Usuario: ${apodo}.`:""}${tel?` Tel: ${tel}.`:""}`;
   state._altaSoporteEnviado=true;
   try{ addMsg(esc(msg),"user"); state.shownTexts.add("u|"+msg.substring(0,200)); }catch(_e){}
@@ -895,11 +897,25 @@ function pedirAyudaAcceso(){
   renderHome();
   escribirSoporteAlta("ayuda"); // abre el chat Y auto-envía el pedido de ayuda de acceso
 }
+// Normaliza el usuario de plataforma antes de mandarlo a validar: saca espacios/acentos, baja a
+// minúsculas y, si vino un email (autorelleno del navegador), se queda con lo de antes del @.
+// NO bloquea ni pelea con el cliente: si igual quedó mal, el operador lo corrige con la marca
+// ⟦INGRESAR:usuario⟧ (autologueo, sin que la persona vuelva a cargar sus datos).
+function normalizarUsuarioPlataforma(raw){
+  let u=String(raw||"").trim();
+  if(!u) return "";
+  if(u.includes("@")) u=u.split("@")[0];                       // email autorellenado → nombre de usuario
+  u=u.normalize("NFD").replace(new RegExp("[\\u0300-\\u036f]","g"),"");  // saca acentos
+  u=u.replace(/\s+/g,"");                                      // sin espacios (nombres pegados quedan legibles)
+  u=u.toLowerCase();
+  u=u.replace(/[^a-z0-9._-]/g,"");                             // solo lo típico de un usuario de plataforma
+  return u;
+}
 async function guardarUsuarioInicial(){
-  const usuario=String($("usuarioInicial")?.value||"").trim();
+  const usuario=normalizarUsuarioPlataforma($("usuarioInicial")?.value||"");
   const telefono=String($("telefonoInicial")?.value||"").trim();
   const err=$("gateError"); if(err)err.style.display="none";
-  if(!usuario)return _gateError("Indicá tu usuario de plataforma.");
+  if(!usuario)return _gateError("Indicá tu usuario de plataforma (el nombre con el que entrás a jugar, no tu email).");
   if(!telefono || telefono.replace(/\D/g,"").length<6)return _gateError("Indicá tu teléfono con código de área (sin 0 ni 15).");
   if(!state.pcCodigo)return _gateError("No identificamos tu oficina. Abrí el enlace de tu oficina o contactá a soporte.");
 
@@ -913,54 +929,72 @@ async function guardarUsuarioInicial(){
   if(btn){btn.disabled=false;btn.textContent="Ingresar al portal";}
 
   const verdict=d.verdict||"";
-  // CONFLICTO / BLOQUEADO → quedate en el gate (corregí los datos o contactá soporte)
-  if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){
-    return _gateError("⚠️ "+(d.mensaje||"No pudimos validar tus datos. Contactá a soporte."));
-  }
+  // Datos vacíos / teléfono inválido → corregilo acá mismo, en el gate.
   if(verdict==="SIN_USUARIO"||verdict==="TEL_INVALIDO"){
     return _gateError(d.mensaje||"Revisá tu usuario y teléfono.");
   }
-  // NO_REGISTRADO (oficina con base, usuario nuevo) → entra en modo SOPORTE para pedir activación por chat
-  state.motivoSoporte = (verdict==="NO_REGISTRADO")
-    ? (d.mensaje||"Tu usuario todavía no está activado. Escribinos por el chat y te activamos para operar.")
-    : "";
 
-  // Semáforo de acceso: ACCESO=OK(🟢 full) · NUEVO/PENDIENTE=PENDIENTE(🟡 full) · ERROR/NO_REGISTRADO=SOPORTE(solo chat)
-  let nivel = (verdict==="ACCESO") ? "OK" : (verdict==="ERROR"||verdict==="NO_REGISTRADO") ? "SOPORTE" : "PENDIENTE";
   state.usuario=usuario;
   state.telefono=telefono;
-  state.nivelAcceso=nivel;
   localStorage.setItem("bet300_usuario",usuario);
   localStorage.setItem("bet300_telefono",telefono);
-  localStorage.setItem("bet300_nivel_acceso",nivel);
-  if(state.motivoSoporte) localStorage.setItem("bet300_motivo_soporte",state.motivoSoporte); else localStorage.removeItem("bet300_motivo_soporte");
   if(d.estado)localStorage.setItem("bet300_vinculo_estado",d.estado);
+
+  // ✅ Cotejo OK → validado desde el inicio, entra directo a operar.
+  if(verdict==="ACCESO"){
+    state.nivelAcceso="OK"; localStorage.setItem("bet300_nivel_acceso","OK");
+    state.motivoSoporte=""; localStorage.removeItem("bet300_motivo_soporte");
+    renderHome();
+    setTimeout(()=>subscribePush(),1500);
+    setTimeout(()=>marcarAppInstalada(),1700);
+    toast("✅ "+(d.mensaje||"Acceso verificado."));
+    return;
+  }
+
+  // ⚠️ Cualquier otro caso (no validó al toque, dato mal escrito, usuario aún sin activar, conflicto o
+  // error de cotejo): NO lo dejamos en un 🟡 sin salida ni obligamos a "Cambiar usuario" + reloguear.
+  // Lo mandamos al MISMO canal de validación con operador (ticket con usuario+tel + chat) para que lo
+  // valide/CORRIJA y le habilite el botón "Ingresar" (autologueo con el usuario correcto, sin re-login).
+  // En paralelo corre el auto-chequeo del cotejo: si da ACCESO solo, aparece el botón "Ingresar" igual.
+  const conflicto=(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO");
+  state.nivelAcceso="SOPORTE";
+  state.motivoSoporte = conflicto
+    ? (d.mensaje||"Tus datos figuran con otra cuenta. Un operador lo revisa y te habilita el ingreso por acá.")
+    : (d.mensaje||"Estamos validando tu usuario. En un momento te habilitamos el botón para ingresar por acá — no hace falta que vuelvas a cargar tus datos.");
+  localStorage.setItem("bet300_nivel_acceso","SOPORTE");
+  localStorage.setItem("bet300_motivo_soporte",state.motivoSoporte);
   renderHome();
   setTimeout(()=>subscribePush(),1500);
   setTimeout(()=>marcarAppInstalada(),1700);
-  iniciarValidacionUsuarioBackground(usuario);
-  if(nivel==="OK")toast("✅ "+(d.mensaje||"Acceso verificado."));
-  else if(nivel==="SOPORTE")toast("⚠️ No pudimos validarte ahora. Podés escribir a soporte y reintentar.");
+  iniciarValidacionUsuarioBackground(usuario);   // cotejo en agentes (autohabilita "Ingresar" si da ACCESO)
+  escribirSoporteAlta("validar");                 // ticket claro para el operador + abre el chat
 }
 
+// Modal CENTRADO (position:fixed) — antes se insertaba al final del home y quedaba fuera de pantalla
+// sin scroll: nadie lo encontraba. Ahora aparece al medio, por encima de todo.
 function cambiarUsuario(){
   const existing=document.getElementById("cambioConfirm");
   if(existing){existing.remove();return}
-  const home=$("screenHome");
-  if(!home)return;
-  home.insertAdjacentHTML("beforeend",`<div id="cambioConfirm" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.28);border-radius:14px;padding:13px;margin-top:14px">
-    <div style="font-size:13px;color:#fca5a5;margin-bottom:10px">¿Cambiar el usuario guardado en este dispositivo?</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+  const ov=document.createElement("div");
+  ov.id="cambioConfirm";
+  ov.style.cssText="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:20px";
+  ov.innerHTML=`<div style="background:#0f1720;border:1px solid rgba(239,68,68,.35);border-radius:16px;padding:20px;max-width:340px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="font-size:15px;font-weight:800;color:#fca5a5;margin-bottom:6px">¿Cambiar de usuario?</div>
+    <div style="font-size:13px;color:#c0cad8;line-height:1.45;margin-bottom:16px">Vas a salir del usuario <b>${esc(state.usuario||"")}</b> en este dispositivo e ingresar con otro. Casi nunca hace falta: si escribiste mal tu usuario, un operador te lo corrige y te habilita el botón <b>Ingresar</b> sin que tengas que volver a cargar nada.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <button class="action-btn secondary-btn" style="margin:0" onclick="document.getElementById('cambioConfirm').remove()">Cancelar</button>
-      <button class="action-btn" style="margin:0;background:#ef4444;color:#fff;border-color:#ef4444" onclick="_confirmarCambioUsuario()">Cambiar</button>
+      <button class="action-btn" style="margin:0;background:#ef4444;color:#fff;border-color:#ef4444" onclick="_confirmarCambioUsuario()">Sí, cambiar</button>
     </div>
-  </div>`);
+  </div>`;
+  ov.addEventListener("click",e=>{ if(e.target===ov) ov.remove(); });
+  document.body.appendChild(ov);
 }
 
 function _confirmarCambioUsuario(){
+  try{ document.getElementById("cambioConfirm")?.remove(); }catch(_e){}
   stopChatPoll();stopEstadoPoll();stopPortalThreadPoll();
   ["bet300_usuario","bet300_telefono","bet300_vinculo_estado","bet300_nivel_acceso","bet300_motivo_soporte","bet300_chat_id","bet300_solicitud_id","bet300_pending_tipo","bet300_chat_token","bet300_portal_thread_seen","bet300_solicitud_started_at"].forEach(k=>localStorage.removeItem(k));
-  Object.assign(state,{usuario:"",telefono:"",nivelAcceso:"",motivoSoporte:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),_threadRendered:new Set(),_ingresarUserShown:null,composerImage:null,unread:0,chatGreeted:false});
+  Object.assign(state,{usuario:"",telefono:"",nivelAcceso:"",motivoSoporte:"",solicitudId:"",pendingTipo:"",chatId:"",chatToken:"",chatLibre:false,seenMsgIds:new Set(),portalThreadSeen:new Set(),shownTexts:new Set(),_threadRendered:new Set(),_ingresarUserShown:null,_altaSoporteEnviado:false,composerImage:null,unread:0,chatGreeted:false});
   clearComposerImage();
   $("messages").innerHTML="";
   goHome();
