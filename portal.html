@@ -1152,7 +1152,11 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
   const d=normalize(res.data)||res.data||{};
   if(d.ok===false){setEstadoLive("⏳ En verificación");return "PENDIENTE";}
   const estado=estadoNormalizado(d.estado||d.status||d.estado_solicitud);
-  const obs=String(d.obs||d.observacion||d.motivo||d.razon||"").trim();
+  // Motivo del rechazo: la RPC landing_estado_solicitud_segura lo devuelve en `mensaje` cuando el
+  // estado es final-rechazado (lo carga el operador al rechazar y queda en landing_solicitudes.metadata).
+  // Ignoramos el "OK" que la RPC devuelve en los casos normales (no es un motivo).
+  const _motivoMsg=(d.mensaje && String(d.mensaje).trim().toUpperCase()!=="OK") ? String(d.mensaje).trim() : "";
+  const obs=String(d.obs||d.observacion||d.motivo||d.razon||_motivoMsg||"").trim();
   if(esEstadoFinalAprobado(estado)){
     if(esConfirmacionDemasiadoTemprana()){setEstadoLive("⏳ En verificación");return "PENDIENTE";}
     limpiarPendienteAprobado(obs);
