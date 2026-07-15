@@ -57,6 +57,12 @@ button,input,textarea{font-family:var(--font)}
 .launcher.mini .fb-text{display:none}
 .launcher-min{position:fixed;right:13px;bottom:calc(120px + var(--safe-b));z-index:21;width:26px;height:26px;border-radius:999px;border:1px solid var(--gold-deep);background:#1a1a20;color:var(--gold-2);font-size:17px;font-weight:900;line-height:22px;text-align:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5);padding:0}
 .launcher-min:active{transform:scale(.92)}
+/* Dock colapsable: esconde los botones del portal (Pantalla completa + Cajero) detrás del handle
+   para no tapar la vista del juego. El iframe es cross-origin → no se puede autodetectar el juego,
+   así que arranca COLAPSADO y se auto-oculta; un toque en el handle los muestra. */
+#fullscreenBtn,#floatBtn{transition:opacity .22s,transform .22s}
+body.dock-collapsed #fullscreenBtn,body.dock-collapsed #floatBtn{opacity:0;pointer-events:none;transform:translateY(16px) scale(.9)}
+.launcher-min.has-unread::after{content:"";position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:999px;background:var(--danger);border:2px solid var(--bg)}
 /* Botón "pantalla completa": abre la plataforma en pestaña propia (first-party) para que las
    imágenes carguen en TODOS los navegadores (Safari/Samsung/Firefox cortan las cookies de
    terceros dentro del iframe). Bottom-left para no chocar con el launcher del cajero. */
@@ -281,7 +287,7 @@ textarea{resize:vertical;min-height:76px}
   <span class="fb-text">Cajero<span class="fb-sub">Cargas · Retiros · Ayuda</span></span>
   <span id="floatUnread" class="float-badge hidden">0</span>
 </button>
-<button id="floatMin" class="launcher-min" onclick="toggleLauncherMini(event)" aria-label="Minimizar o restaurar el cajero" title="Minimizar / restaurar">–</button>
+<button id="floatMin" class="launcher-min" onclick="toggleDock(event)" aria-label="Mostrar u ocultar los botones del cajero" title="Mostrar / ocultar botones">⋯</button>
 <button id="fullscreenBtn" class="fullscreen-btn" onclick="abrirPlataformaFullscreen()" aria-label="Abrir la plataforma a pantalla completa" title="Si no ves bien los juegos, abrí la plataforma a pantalla completa">
   <span class="fs-ico">⛶</span><span>Pantalla completa</span>
 </button>
@@ -493,25 +499,44 @@ function escribirSoporteAlta(tipo){
 function updateUnreadUI(){
   const els=[$("floatUnread"),$("homeUnread"),$("navUnread")];
   els.forEach(el=>{if(el){el.textContent=state.unread>99?"99+":state.unread;el.classList.toggle("hidden",!state.unread);}});
+  // Si el dock está colapsado, el badge del cajero no se ve → mostramos un punto en el handle.
+  const m=$("floatMin"); if(m) m.classList.toggle("has-unread", state.unread>0);
 }
 function bumpUnread(){state.unread++;updateUnreadUI();}
 function clearUnread(){state.unread=0;updateUnreadUI();}
 
-// ── Apertura / cierre del panel ─────────────────────────────────────────────
-function toggleLauncherMini(e){
-  if(e){ try{ e.stopPropagation(); e.preventDefault(); }catch(_e){} }
-  const l=$("floatBtn"); if(!l) return;
-  const mini=l.classList.toggle("mini");
-  const m=$("floatMin"); if(m){ m.textContent = mini ? "+" : "–"; m.title = mini ? "Restaurar cajero" : "Minimizar cajero"; }
-  try{ localStorage.setItem("bet300_launcher_mini", mini?"1":"0"); }catch(_e){}
+// ── Dock colapsable (botones del portal sobre el iframe) ────────────────────
+// El iframe de la plataforma es cross-origin: NO se puede saber si el usuario está en el lobby o
+// dentro de un juego. En vez de autodetectar, escondemos los botones del portal (Pantalla completa
+// + Cajero) detrás de un handle chico; arranca COLAPSADO y se auto-oculta a los ~4s para no tapar
+// el juego. Un toque en el handle los muestra.
+let _dockTimer=null;
+function armDockAutohide(){
+  clearTimeout(_dockTimer);
+  _dockTimer=setTimeout(function(){ collapseDock(); }, 4000);
 }
+function collapseDock(){
+  clearTimeout(_dockTimer);
+  document.body.classList.add("dock-collapsed");
+  const m=$("floatMin"); if(m){ m.textContent="⋯"; m.title="Mostrar botones del cajero"; }
+}
+function expandDock(){
+  document.body.classList.remove("dock-collapsed");
+  const m=$("floatMin"); if(m){ m.textContent="–"; m.title="Ocultar botones"; }
+  armDockAutohide();
+}
+function toggleDock(e){
+  if(e){ try{ e.stopPropagation(); e.preventDefault(); }catch(_e){} }
+  if(document.body.classList.contains("dock-collapsed")) expandDock(); else collapseDock();
+}
+// Arranca colapsado por defecto y re-arma el auto-ocultar si el usuario toca los botones expandidos.
+// (Nombre viejo por compatibilidad con la llamada del init.)
 function restoreLauncherMini(){
-  try{
-    if(localStorage.getItem("bet300_launcher_mini")==="1"){
-      const l=$("floatBtn"); if(l) l.classList.add("mini");
-      const m=$("floatMin"); if(m){ m.textContent="+"; m.title="Restaurar cajero"; }
-    }
-  }catch(_e){}
+  collapseDock();
+  ["floatBtn","fullscreenBtn","floatMin"].forEach(function(id){
+    const el=$(id);
+    if(el) el.addEventListener("pointerdown", function(){ if(!document.body.classList.contains("dock-collapsed")) armDockAutohide(); });
+  });
 }
 function toggleWidget(open){
   const w=$("widget"),scrim=$("scrim");
