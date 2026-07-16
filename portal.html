@@ -1210,15 +1210,24 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
     return estado;
   }
   rechazadoStreak=0;
-  if(String(state.pendingTipo||"").toUpperCase()==="RETIRO") cargarProgresoRetiro().catch(()=>{});
-  // Retiro EN_PROCESO = pago por partes → pantalla claramente distinta a un retiro normal demorado
-  // (esto anda solo con landing_estado_solicitud_segura; la barra detallada requiere landing_retiro_progreso).
+  const _esRetiroPend = String(state.pendingTipo||"").toUpperCase()==="RETIRO";
+  if(_esRetiroPend) cargarProgresoRetiro().catch(()=>{});
+  // EN_PROCESO: SOLO para RETIRO es "pago por partes". Para una CARGA es "acreditando" — antes se
+  // pegaba la pantalla de retiro en proceso sobre una carga y confundía (bug reportado).
   if(estado==="EN_PROCESO"){
-    try{ const s=$("screenEstado"); const h=s&&s.querySelector(".estado-h"); if(h)h.textContent="🔄 Retiro en proceso";
-         const sub=s&&s.querySelector(".estado-sub"); if(sub)sub.textContent="Te lo estamos pagando por partes — vas a ver cada pago acá";
-         const tx=s&&s.querySelector(".estado-tx"); if(tx)tx.textContent="Tu retiro es grande y lo abonamos por tramos. Cada transferencia aparece abajo y te avisamos."; }catch(_e){}
+    try{ const s=$("screenEstado"); const h=s&&s.querySelector(".estado-h"); const sub=s&&s.querySelector(".estado-sub"); const tx=s&&s.querySelector(".estado-tx");
+      if(_esRetiroPend){
+        if(h)h.textContent="🔄 Retiro en proceso";
+        if(sub)sub.textContent="Te lo estamos pagando por partes — vas a ver cada pago acá";
+        if(tx)tx.textContent="Tu retiro es grande y lo abonamos por tramos. Cada transferencia aparece abajo y te avisamos.";
+      }else{
+        if(h)h.textContent="⏳ Procesando tu carga";
+        if(sub)sub.textContent="Estamos acreditando tus fichas";
+        if(tx)tx.textContent="Ya estamos procesando tu carga. En un momento vas a ver tus fichas acreditadas.";
+      }
+    }catch(_e){}
   }
-  setEstadoLive(estado==="EN_PROCESO"?"💸 Te estamos pagando por partes":"⏳ En verificación");
+  setEstadoLive(estado==="EN_PROCESO"?(_esRetiroPend?"💸 Te estamos pagando por partes":"⏳ Acreditando tu carga"):"⏳ En verificación");
   return estado||"PENDIENTE";
 }
 
