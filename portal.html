@@ -572,22 +572,23 @@ function incomingOperatorMsg(texto,imgUrl){
   // ── Marca oculta de validación: el operador validó la cuenta desde el panel y manda
   //    ⟦INGRESAR:usuario⟧ dentro del mensaje. No mostramos la marca cruda: mostramos el
   //    texto (sin la marca) + un botón "Ingresar" para que entre directo desde el chat.
-  let _ingresarUser=null;
+  let _ingresarUser=null, _ingresarTel="";
   const _mIng=texto.match(/⟦INGRESAR:([^⟧]*)⟧/);
-  if(_mIng){ _ingresarUser=String(_mIng[1]||"").trim(); texto=texto.replace(/⟦INGRESAR:[^⟧]*⟧/g,"").trim(); }
+  if(_mIng){ const _p=String(_mIng[1]||"").split("|"); _ingresarUser=(_p[0]||"").trim(); _ingresarTel=(_p[1]||"").trim(); texto=texto.replace(/⟦INGRESAR:[^⟧]*⟧/g,"").trim(); }
   // Dedup central por contenido: el mismo mensaje del operador puede llegar por pollPortalThread
   // Y por pollOperatorMessages (dos fuentes, con claves distintas). Así no se duplica.
   const k=(String(texto||"").trim().slice(0,160))+"|"+(String(imgUrl||"").slice(0,120));
-  if(k!=="|"){ if(!state._opMsgSeen) state._opMsgSeen=new Set(); if(state._opMsgSeen.has(k)){ if(_ingresarUser) mostrarBotonIngresar(_ingresarUser); return; } state._opMsgSeen.add(k); }
+  if(k!=="|"){ if(!state._opMsgSeen) state._opMsgSeen=new Set(); if(state._opMsgSeen.has(k)){ if(_ingresarUser) mostrarBotonIngresar(_ingresarUser,_ingresarTel); return; } state._opMsgSeen.add(k); }
   if(texto||imgUrl) addMsg(escMsg(texto),"bot",imgUrl||null);
   const fueraDelChat = state.screen!=="chat" || !$("widget")?.classList.contains("open");
   if(fueraDelChat){ bumpUnread(); try{ showOperatorBubble(texto,imgUrl); }catch(_e){} }
-  if(_ingresarUser) mostrarBotonIngresar(_ingresarUser);
+  if(_ingresarUser) mostrarBotonIngresar(_ingresarUser,_ingresarTel);
 }
 // Botón "Ingresar" dentro del chat: aparece cuando el operador validó la cuenta (por la marca
 // ⟦INGRESAR⟧ o por el auto-chequeo del cotejo). Al tocarlo, revalida y entra directo al home.
-function mostrarBotonIngresar(usuario){
+function mostrarBotonIngresar(usuario,telefono){
   usuario=String(usuario||"").trim() || (state.usuario||"");
+  telefono=String(telefono||"").trim();
   if((state.nivelAcceso||"")==="OK") return;                 // ya está adentro
   if(state._ingresarUserShown===usuario && $("btnIngresarValidado")) return; // no duplicar
   state._ingresarUserShown=usuario;
@@ -598,32 +599,37 @@ function mostrarBotonIngresar(usuario){
   wrap.innerHTML='<div class="bubble" style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.42)">'
     +'<div style="font-weight:800;color:#86efac;margin-bottom:6px">✅ ¡Tu cuenta ya está activa!</div>'
     +'<div style="font-size:13px;line-height:1.4;margin-bottom:10px">Ya podés entrar'+(usuario?' con el usuario <b>'+esc(usuario)+'</b>':'')+' y empezar a operar.</div>'
-    +'<button id="btnIngresarValidado" class="action-btn" style="margin:0" onclick="confirmarIngresoValidado(\''+usuario.replace(/'/g,"")+'\')">Ingresar ›</button>'
+    +'<button id="btnIngresarValidado" class="action-btn" style="margin:0" onclick="confirmarIngresoValidado(\''+usuario.replace(/'/g,"")+'\',\''+telefono.replace(/'/g,"")+'\')">Ingresar ›</button>'
     +'</div><div class="meta">BET300 · '+now()+'</div>';
   msgs.appendChild(wrap); scrollChat();
   const fueraDelChat = state.screen!=="chat" || !$("widget")?.classList.contains("open");
   if(fueraDelChat){ bumpUnread(); try{ showOperatorBubble("✅ ¡Ya te activamos! Tocá para ingresar.",null); }catch(_e){} }
 }
-async function confirmarIngresoValidado(usuario){
+async function confirmarIngresoValidado(usuario,telefono){
   usuario=String(usuario||"").trim();
+  telefono=String(telefono||"").trim();
+  // La marca ⟦INGRESAR:usuario|telefono⟧ trae los datos CORREGIDOS por el operador. Los adoptamos
+  // ANTES de revalidar: si el operador cambió el tel/usuario, el cotejo ahora corre con lo bueno.
   if(usuario){ state.usuario=usuario; try{localStorage.setItem("bet300_usuario",usuario);}catch(_e){} }
+  if(telefono){ state.telefono=telefono; try{localStorage.setItem("bet300_telefono",telefono);}catch(_e){} }
   const btn=$("btnIngresarValidado"); if(btn){ btn.disabled=true; btn.textContent="Ingresando..."; }
   try{
     const r=await rpc("landing_portal_resolver_vinculo",{p_pc_codigo:state.pcCodigo,p_usuario:state.usuario,p_telefono:state.telefono});
     const d=normalize(r.data)||r.data||{};
     const verdict=d.verdict||"";
-    const nivel=(verdict==="ACCESO")?"OK":(verdict==="NUEVO"||verdict==="PENDIENTE")?"PENDIENTE":"";
-    if(nivel){
-      state.nivelAcceso=nivel; try{localStorage.setItem("bet300_nivel_acceso",nivel);}catch(_e){}
-      state.motivoSoporte=""; try{localStorage.removeItem("bet300_motivo_soporte");}catch(_e){}
-      try{ toggleWidget(false); }catch(_e){}
-      goHome();
-      toast(nivel==="OK"?"✅ ¡Listo! Ya podés operar.":"Listo, ya podés operar.");
-    } else if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){
+    // Conflicto DURO (los datos figuran con OTRA cuenta) → no forzamos: puede ser otra persona.
+    if(verdict==="CONFLICTO_TELEFONO"||verdict==="CONFLICTO_USUARIO"||verdict==="BLOQUEADO"){
       toast("⚠️ "+(d.mensaje||"Escribinos por chat.")); if(btn){btn.disabled=false;btn.textContent="Reintentar ingreso";}
-    } else {
-      toast("Todavía no figura activada. Probá de nuevo en unos segundos."); if(btn){btn.disabled=false;btn.textContent="Ingresar ›";}
+      return;
     }
+    // El operador YA validó desde el panel (por eso llegó ⟦INGRESAR⟧, por un canal autenticado):
+    // si el cotejo da ACCESO, perfecto; si todavía no propagó, igual confiamos en esa validación y
+    // lo dejamos entrar. Así el botón funciona aunque el cotejo automático tarde en reflejar el cambio.
+    state.nivelAcceso="OK"; try{localStorage.setItem("bet300_nivel_acceso","OK");}catch(_e){}
+    state.motivoSoporte=""; try{localStorage.removeItem("bet300_motivo_soporte");}catch(_e){}
+    try{ toggleWidget(false); }catch(_e){}
+    goHome();
+    toast("✅ ¡Listo! Ya podés operar.");
   }catch(_e){ toast("No pudimos ingresar ahora. Probá de nuevo."); if(btn){btn.disabled=false;btn.textContent="Ingresar ›";} }
 }
 function renderChat(){
@@ -697,9 +703,9 @@ function renderThreadMsg(m, notificar){
   if(!rawTexto&&!imgUrl)return;
   if(origen==="OPERADOR"){
     // Marca oculta de validación ⟦INGRESAR:usuario⟧ → botón "Ingresar" (se saca del texto visible).
-    let ing=null, texto=rawTexto;
+    let ing=null, ingTel="", texto=rawTexto;
     const mm=rawTexto.match(/⟦INGRESAR:([^⟧]*)⟧/);
-    if(mm){ ing=String(mm[1]||"").trim(); texto=rawTexto.replace(/⟦INGRESAR:[^⟧]*⟧/g,"").trim(); }
+    if(mm){ const _p=String(mm[1]||"").split("|"); ing=(_p[0]||"").trim(); ingTel=(_p[1]||"").trim(); texto=rawTexto.replace(/⟦INGRESAR:[^⟧]*⟧/g,"").trim(); }
     // Dedup por contenido, compartido con pollOperatorMessages (misma clave, texto crudo).
     const tk=rawTexto?rawTexto.substring(0,200):((m.fecha||"")+"|img|"+(imgUrl||"").substring(0,80));
     if(!state.shownTexts.has(tk)){
@@ -710,7 +716,7 @@ function renderThreadMsg(m, notificar){
         if(fuera){ bumpUnread(); try{ showOperatorBubble(texto,imgUrl); }catch(_e){} if(texto){ try{ notificarLocal("BET300 · Operador",texto.substring(0,100),"/","bet300-op"); }catch(_e){} } }
       }
     }
-    if(ing) mostrarBotonIngresar(ing);
+    if(ing) mostrarBotonIngresar(ing,ingTel);
   } else {
     // Mensaje del propio usuario (historial). Dedup por contenido contra lo ya mostrado en vivo.
     const uk=rawTexto?("u|"+rawTexto.substring(0,200)):("uimg|"+(imgUrl||"").substring(0,80));
