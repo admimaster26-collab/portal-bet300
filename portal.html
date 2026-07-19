@@ -948,7 +948,7 @@ async function guardarUsuarioInicial(){
   const err=$("gateError"); if(err)err.style.display="none";
   if(!usuario)return _gateError("Indicá tu usuario de plataforma (el nombre con el que entrás a jugar, no tu email).");
   if(!telefono || telefono.replace(/\D/g,"").length<6)return _gateError("Indicá tu teléfono con código de área (sin 0 ni 15).");
-  if(!state.pcCodigo)return _gateError("No identificamos tu oficina. Abrí el enlace de tu oficina o contactá a soporte.");
+  if(!state.pcCodigo)return _gateError("No identificamos tu agente. Abrí el enlace de tu agente o contactá a soporte.");
 
   const btn=$("gateBtn"); if(btn){btn.disabled=true;btn.textContent="Verificando...";}
   let d={};
@@ -1312,21 +1312,21 @@ async function initRoute(){
       if(dh && dh.ok && (dh.pc_codigo||dh.public_code)){
         state.pcCodigo=dh.pc_codigo||null;
         if(dh.public_code){ state.publicCode=dh.public_code; try{localStorage.setItem("bet300_public_code",dh.public_code);}catch(_e){} }
-        console.log("[BET300] oficina por host",location.host,"->",state.pcCodigo,state.publicCode);
+        console.log("[BET300] agente por host",location.host,"->",state.pcCodigo,state.publicCode);
         if(state.pcCodigo) return;
       }
     }catch(_e){}
   }
   // 3) Ruta guardada (PWA instalada que abre sin ?r= ni subdominio).
   if(!state.publicCode){ state.publicCode = localStorage.getItem("bet300_public_code") || ""; }
-  if(!state.publicCode){ state.pcCodigo=null; console.warn("[BET300] sin ruta de oficina"); return; }
-  // 4) Resolver oficina por public_code (DB-driven). Sin default P1 en producción.
+  if(!state.publicCode){ state.pcCodigo=null; console.warn("[BET300] sin ruta de agente"); return; }
+  // 4) Resolver agente por public_code (DB-driven). Sin default P1 en producción.
   const r=await rpc("landing_resolver_ruta_publica",{p_public_code:state.publicCode});
   if(!r.error){const row=normalize(r.data);state.pcCodigo=row?.pc_codigo||row?.pc||row?.codigo_pc||null;}
   console.log("[BET300 V18] canal",state.pcCodigo,"ruta",state.publicCode);
 }
 
-// Promo de bienvenida: solo se muestra si la oficina la tiene activada (landing_rutas_publicas.promo_activa).
+// Promo de bienvenida: solo se muestra si la agente la tiene activada (landing_rutas_publicas.promo_activa).
 async function cargarPromoActiva(){
   state.promoActiva=false;
   if(!state.pcCodigo)return;
@@ -1369,7 +1369,7 @@ function billeteraSignature(b){
 // ── Producción: guard de operación (anti-bypass desde consola) ──
 function _puedeOperar(){
   if(state.nivelAcceso==="SOPORTE"){ toast("Validá tus datos para operar. Escribinos por soporte."); try{goChat();}catch(_e){} return false; }
-  if(!state.pcCodigo){ toast("No identificamos tu oficina. Abrí el enlace de tu oficina o contactá a soporte."); return false; }
+  if(!state.pcCodigo){ toast("No identificamos tu agente. Abrí el enlace de tu agente o contactá a soporte."); return false; }
   if(tieneSolicitudPendiente()){ toast("Ya tenés una solicitud en revisión."); try{goEstado();}catch(_e){} return false; }
   return true;
 }
@@ -1416,7 +1416,7 @@ function showOperatorBubble(texto, imgUrl){
 function hideOperatorBubble(){ const el=document.getElementById("opBubble"); if(el) el.style.display="none"; }
 // ── Bono de bienvenida (SOLO preparación visual; NO acredita nada — lo valida el operador) ──
 // Estado client-side: si la app está instalada (standalone) y si las notificaciones están aceptadas.
-// Persistencia/estado real por usuario+tel+oficina → backend pendiente: landing_estado_bono_bienvenida (TODO).
+// Persistencia/estado real por usuario+tel+agente → backend pendiente: landing_estado_bono_bienvenida (TODO).
 function bonoBienvenidaEstado(){
   let app=false, push=false;
   try{ app=(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true; }catch(_e){}
@@ -1427,7 +1427,7 @@ function bonoBienvenidaEstado(){
 // Bono ADITIVO: base 20% · +10% notificaciones · +20% app → 50% máximo (20/30/40/50).
 function bonoPctFromEstado(e){ let p=20; if(e.push)p+=10; if(e.app)p+=20; return p; }
 function renderBonoBienvenidaCard(){
-  if(!state.promoActiva) return ""; // solo oficinas con la promo activada (alta o activación posterior)
+  if(!state.promoActiva) return ""; // solo agentes con la promo activada (alta o activación posterior)
   const e=bonoBienvenidaEstado();
   // Si el usuario YA usó su bono de ingreso (primera carga acreditada), ocultamos la tarjeta del
   // bono (%) y dejamos SOLO los botones de instalar app / activar notificaciones (valor continuo).
@@ -1781,7 +1781,7 @@ function renderClave(){
 
 async function enviarSolicitudClave(){
   if(state.nivelAcceso==="SOPORTE"){ toast("Validá tus datos para operar. Escribinos por soporte."); try{goChat();}catch(_e){} return; }
-  if(!state.pcCodigo){ toast("No identificamos tu oficina. Abrí el enlace de tu oficina o contactá a soporte."); return; }
+  if(!state.pcCodigo){ toast("No identificamos tu agente. Abrí el enlace de tu agente o contactá a soporte."); return; }
   const claveRaw=($("claveNueva")?.value||"").trim();
   const clave=claveRaw||"12345a";
   if(clave.length<6)return toast("La clave debe tener al menos 6 caracteres");
