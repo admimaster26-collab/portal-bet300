@@ -1871,10 +1871,21 @@ async function subscribePush(){
       if(perm!=="granted")return;
       sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:_vapidKey(VAPID_PUB_KEY)});
     }
-    await fetch("/api/save-subscription",{
+    // DEDUP: subscribePush() se llama desde 8 lugares (incluido renderChat, o sea cada vez que se
+    // abre el chat) y antes POSTEABA SIEMPRE, aunque la suscripción ya estuviera guardada y no
+    // hubiera cambiado nada → millones de invocaciones de función en Vercel al pedo.
+    // Ahora solo se guarda si cambió el usuario/teléfono/endpoint, o si pasaron 24 h.
+    const _firma = [state.usuario||"", state.telefono||"", sub.endpoint||""].join("|");
+    const _KEY = "bet300_push_saved";
+    try{
+      const prev = JSON.parse(localStorage.getItem(_KEY)||"{}");
+      if(prev.firma === _firma && (Date.now() - Number(prev.ts||0)) < 24*60*60*1000) return; // ya guardada
+    }catch(_e){}
+    const _r = await fetch("/api/save-subscription",{
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({usuario:state.usuario,public_code:state.publicCode,telefono:state.telefono||"",subscription:sub.toJSON()})
     });
+    if(_r && _r.ok){ try{ localStorage.setItem(_KEY, JSON.stringify({firma:_firma, ts:Date.now()})); }catch(_e){} }
   }catch(e){console.warn("[BET300 push]",e);}
 }
 async function notificarLocal(title,body,url,tag){
