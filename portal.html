@@ -1669,7 +1669,7 @@ async function enviarSolicitudCarga(usuario,monto,titular){
   if(String(titular||"").trim().length<3)return toast("Indicá el titular que transfiere (mínimo 3 letras).");
   limpiarSolicitudAnteriorAntesDeNueva();
   const bp=billeteraPayloadPlano();
-  const payload={usuario,monto:Number(monto),titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CARGA",...bp};
+  const payload={usuario,monto:Number(monto),titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,tipo:"CARGA",...bp};
   const destino=bp.billetera_nombre?`${bp.billetera_nombre}${bp.billetera_alias?" · "+bp.billetera_alias:""}`:null;
   let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_destino:destino,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_metadata:payload});
   // Rechazo por validación de vínculo → NO usar fallback (sería un bypass). Mandamos a soporte.
@@ -1727,7 +1727,7 @@ async function enviarSolicitudRetiro(){
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
   limpiarSolicitudAnteriorAntesDeNueva();
   const msg="Solicitud de RETIRO: $"+monto+" · Destino: "+destino+" · Titular: "+titular;
-  const payload={usuario,monto,destino,titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"RETIRO"};
+  const payload={usuario,monto,destino,titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,tipo:"RETIRO"};
   let res=await rpc("landing_portal_v16_crear_solicitud",{
     p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"RETIRO",
     p_monto:monto,p_titular:titular,p_destino:destino,p_mensaje:msg,p_metadata:payload
@@ -1788,7 +1788,7 @@ async function enviarSolicitudClave(){
   if(!/^[a-zA-Z0-9]+$/.test(clave))return toast("Solo letras y números, sin espacios ni símbolos");
   const btn=$("btnEnviarClave");
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
-  const payload={usuario:state.usuario,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"CAMBIO_CLAVE",password_nuevo:clave};
+  const payload={usuario:state.usuario,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,tipo:"CAMBIO_CLAVE",password_nuevo:clave};
   let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:state.usuario,p_tipo:"CAMBIO_CLAVE",p_monto:0,p_titular:"",p_destino:null,p_mensaje:"Solicitud de CAMBIO_CLAVE",p_metadata:payload});
   if(res.error){console.warn("[V18] clave v16 falló",res.error);res=await rpc("landing_crear_chat_v2_blindado",{p_public_code:state.publicCode,p_usuario:state.usuario,p_mensaje:"Solicitud de CAMBIO DE CLAVE",p_tipo:"CAMBIO_CLAVE",p_extra:payload});}
   if(res.error){toast("No pudimos enviar la solicitud. Probá por el chat.");goChat();return;}
@@ -1817,7 +1817,7 @@ async function enviarMensajeSoporte(txt,imagenUrl=null){
 
   if(!res||res.error){
     const bp=billeteraPayloadPlano();
-    const payload={usuario:state.usuario,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,tipo:"SOPORTE",...bp,...(imagenUrl?{imagen_url:imagenUrl}:{})};
+    const payload={usuario:state.usuario,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,tipo:"SOPORTE",...bp,...(imagenUrl?{imagen_url:imagenUrl}:{})};
     res=await rpc("landing_portal_v16_crear_solicitud",{
       p_public_code:state.publicCode,p_usuario:state.usuario,
       p_tipo:"SOPORTE",p_monto:0,p_titular:"",p_destino:null,
