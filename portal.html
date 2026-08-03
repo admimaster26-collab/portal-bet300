@@ -288,18 +288,9 @@ textarea{resize:vertical;min-height:76px}
   <span id="floatUnread" class="float-badge hidden">0</span>
 </button>
 <button id="floatMin" class="launcher-min" onclick="toggleDock(event)" aria-label="Mostrar u ocultar los botones del cajero" title="Mostrar / ocultar botones">⋯</button>
-<button id="fullscreenBtn" class="fullscreen-btn" onclick="abrirPlataformaFullscreen()" aria-label="Abrir la plataforma a pantalla completa" title="Si no ves bien los juegos, abrí la plataforma a pantalla completa">
-  <span class="fs-ico">⛶</span><span>Pantalla completa</span>
-</button>
-
-<div id="launcherOverlay" class="launcher-overlay">
-  <div class="lo-logo">🎰 BET300</div>
-  <div class="lo-title">Entrá a la plataforma a pantalla completa</div>
-  <div class="lo-sub">En tu navegador los juegos se ven mejor a pantalla completa. Entrá acá y volvés al portal cuando quieras con la flecha ← / “Listo” de arriba.</div>
-  <button class="lo-btn" onclick="launcherJugar()">🎮 Entrar a la plataforma</button>
-  <button class="lo-btn sec" onclick="launcherCajero()">💬 Abrir cajero · Cargar / Retirar</button>
-  <button class="lo-dismiss" onclick="cerrarLauncher()">Seguir en la vista normal</button>
-</div>
+<!-- Launcher/pantalla-completa para iPhone RETIRADO (2026-07-27): la auto-apertura tapaba el iframe
+     y confundía a usuarios que veían todo bien. Se retoma el fix de imágenes 3rd-party más adelante.
+     (funciones abrirPlataformaFullscreen/launcher* quedan sin uso; no se invocan). -->
 
 <div id="scrim" class="scrim" onclick="toggleWidget(false)"></div>
 
@@ -2024,7 +2015,7 @@ window.addEventListener("load",async()=>{
   setTimeout(marcarAppInstalada, 2500);
   renderHome();
   showScreen("home");
-  mostrarLauncherSiHaceFalta();
+  // mostrarLauncherSiHaceFalta(); // RETIRADO 2026-07-27: el launcher iPhone confundía a usuarios que veían el iframe bien
   if(tieneSolicitudPendiente()){
     startEstadoPoll();
     chequearPendienteViejo();
