@@ -66,7 +66,7 @@ body.dock-collapsed #fullscreenBtn,body.dock-collapsed #floatBtn{opacity:0;point
 /* Botón "pantalla completa": abre la plataforma en pestaña propia (first-party) para que las
    imágenes carguen en TODOS los navegadores (Safari/Samsung/Firefox cortan las cookies de
    terceros dentro del iframe). Bottom-left para no chocar con el launcher del cajero. */
-.fullscreen-btn{position:fixed;left:14px;bottom:calc(78px + var(--safe-b));z-index:20;display:flex;align-items:center;gap:6px;padding:9px 13px;border-radius:999px;border:1px solid var(--gold-deep);background:#1a1a20;color:var(--gold-2);font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.fullscreen-btn{position:fixed;left:14px;bottom:calc(78px + var(--safe-b));z-index:20;display:flex;align-items:center;gap:6px;padding:9px 13px;border-radius:999px;border:1px solid var(--gold-deep);background:#1a1a20;color:var(--gold-2);font-size:12px;font-weight:800;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.5);text-decoration:none}
 .fullscreen-btn:active{transform:scale(.96)}
 .fullscreen-btn .fs-ico{font-size:15px;line-height:1}
 /* Launcher auto-detectado: pantalla de entrada para navegadores que rompen las imágenes del
@@ -288,9 +288,13 @@ textarea{resize:vertical;min-height:76px}
   <span id="floatUnread" class="float-badge hidden">0</span>
 </button>
 <button id="floatMin" class="launcher-min" onclick="toggleDock(event)" aria-label="Mostrar u ocultar los botones del cajero" title="Mostrar / ocultar botones">⋯</button>
-<!-- Launcher/pantalla-completa para iPhone RETIRADO (2026-07-27): la auto-apertura tapaba el iframe
-     y confundía a usuarios que veían todo bien. Se retoma el fix de imágenes 3rd-party más adelante.
-     (funciones abrirPlataformaFullscreen/launcher* quedan sin uso; no se invocan). -->
+<!-- Botón "Pantalla completa": link DIRECTO a la plataforma (first-party, pestaña propia).
+     Es un <a> puro, no window.open → ningún bloqueador de popups lo frena.
+     El overlay auto-detectado de iPhone NO vuelve: tapaba el iframe y confundía. -->
+<a id="fullscreenBtn" class="fullscreen-btn" href="https://bet-300.pw" target="_blank" rel="noopener"
+   aria-label="Abrir la plataforma a pantalla completa" title="Abrir la plataforma a pantalla completa">
+  <span class="fs-ico">⛶</span><span>Pantalla completa</span>
+</a>
 
 <div id="scrim" class="scrim" onclick="toggleWidget(false)"></div>
 
