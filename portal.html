@@ -55,7 +55,7 @@ button,input,textarea{font-family:var(--font)}
 .launcher .float-badge{position:absolute;top:-6px;right:-6px;min-width:22px;height:22px;border-radius:999px;background:var(--danger);color:#fff;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid var(--bg)}
 .launcher.mini{width:54px;padding:0;justify-content:center}
 .launcher.mini .fb-text{display:none}
-.launcher-min{position:fixed;right:13px;bottom:calc(120px + var(--safe-b));z-index:21;width:26px;height:26px;border-radius:999px;border:1px solid var(--gold-deep);background:#1a1a20;color:var(--gold-2);font-size:17px;font-weight:900;line-height:22px;text-align:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5);padding:0}
+.launcher-min{position:fixed;right:13px;bottom:calc(126px + var(--safe-b));z-index:21;width:40px;height:40px;border-radius:999px;border:1px solid var(--gold-deep);background:#1a1a20;color:var(--gold-2);font-size:22px;font-weight:900;line-height:36px;text-align:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5);padding:0}
 .launcher-min:active{transform:scale(.92)}
 /* Dock colapsable: esconde los botones del portal (Pantalla completa + Cajero) detrás del handle
    para no tapar la vista del juego. El iframe es cross-origin → no se puede autodetectar el juego,
@@ -514,7 +514,7 @@ function collapseDock(){
 function expandDock(){
   document.body.classList.remove("dock-collapsed");
   const m=$("floatMin"); if(m){ m.textContent="–"; m.title="Ocultar botones"; }
-  armDockAutohide();
+  // Sin auto-ocultar: queda expandido hasta que el usuario lo minimice.
 }
 function toggleDock(e){
   if(e){ try{ e.stopPropagation(); e.preventDefault(); }catch(_e){} }
@@ -523,11 +523,9 @@ function toggleDock(e){
 // Arranca colapsado por defecto y re-arma el auto-ocultar si el usuario toca los botones expandidos.
 // (Nombre viejo por compatibilidad con la llamada del init.)
 function restoreLauncherMini(){
-  collapseDock();
-  ["floatBtn","fullscreenBtn","floatMin"].forEach(function(id){
-    const el=$(id);
-    if(el) el.addEventListener("pointerdown", function(){ if(!document.body.classList.contains("dock-collapsed")) armDockAutohide(); });
-  });
+  // Arranca EXPANDIDO (cajero visible) y NO se auto-minimiza: solo el usuario lo minimiza con el handle.
+  document.body.classList.remove("dock-collapsed");
+  const m=$("floatMin"); if(m){ m.textContent="–"; m.title="Ocultar botones"; }
 }
 function toggleWidget(open){
   const w=$("widget"),scrim=$("scrim");
@@ -637,6 +635,27 @@ function renderChat(){
 
 async function rpc(fn,params){if(!sb)return{data:null,error:{message:"Supabase no configurado"}};const{data,error}=await sb.rpc(fn,params||{});return{data,error}}
 function normalize(data){if(!data)return null;if(Array.isArray(data))return data[0]||null;if(data.data)return Array.isArray(data.data)?data.data[0]:data.data;return data}
+
+// Navegador + SO + si es PWA → se manda en la metadata de la solicitud para que el operador lo vea.
+function _infoNavegador(){
+  try{
+    const ua=navigator.userAgent||"";
+    let n="Navegador";
+    if(/SamsungBrowser/i.test(ua)) n="Samsung Internet";
+    else if(/Edg[A-Z]?\//i.test(ua)) n="Edge";
+    else if(/OPR\/|Opera/i.test(ua)) n="Opera";
+    else if(/CriOS|Chrome/i.test(ua)) n="Chrome";
+    else if(/FxiOS|Firefox/i.test(ua)) n="Firefox";
+    else if(/Safari/i.test(ua)) n="Safari";
+    let os="";
+    if(/iPhone|iPad|iPod/i.test(ua)) os="iOS";
+    else if(/Android/i.test(ua)) os="Android";
+    else if(/Windows/i.test(ua)) os="Windows";
+    else if(/Mac OS X|Macintosh/i.test(ua)) os="Mac";
+    const pwa=((window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)||navigator.standalone)?" · app":"";
+    return (n+(os?" ("+os+")":"")+pwa)||ua.slice(0,120);
+  }catch(_e){ return (navigator.userAgent||"").slice(0,120); }
+}
 
 // ── Chat poll ─────────────────────────────────────────────────────────────
 function startChatPoll(){stopChatPoll();if(!state.chatId)return;chatPollTimer=setInterval(pollOperatorMessages,5000);}
@@ -1089,6 +1108,43 @@ function startEstadoPoll(){
 function setEstadoLive(txt){const e=$("estadoLive");if(e)e.innerHTML='<span class="live-dot"></span>'+esc(txt);}
 
 // ── Estado (pantalla) ──────────────────────────────────────────────────────
+// ── Historial del usuario (últimos 7 días) ───────────────────────────────────
+async function cargarHistorialUsuario(){
+  if(!state.usuario||!state.telefono) return [];
+  const res=await rpc("landing_historial_usuario",{p_usuario:state.usuario,p_telefono:state.telefono,p_public_code:state.publicCode||""});
+  if(res.error||!Array.isArray(res.data)) return [];
+  return res.data;
+}
+function _fechaCorta(iso){
+  try{ const d=new Date(iso); if(isNaN(d.getTime())) return ""; return d.toLocaleString("es-AR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}); }
+  catch(_e){ return ""; }
+}
+function _estadoBadge(e){
+  const u=String(e||"").toUpperCase();
+  const ok=["OK","APROBADA","ACREDITADA","PAGADA","COMPLETADA"].includes(u);
+  const rech=["RECHAZADA","CANCELADA","ERROR","ERROR_OPERATIVO"].includes(u);
+  const col=ok?"#22c55e":rech?"#ef4444":"#f5c518", txt=ok?"Confirmada":rech?"Rechazada":"En revisión";
+  return '<span style="font-size:11px;font-weight:800;color:'+col+'">'+txt+'</span>';
+}
+async function pintarHistorialUsuario(){
+  const box=$("histUsuario"); if(!box) return;
+  box.innerHTML='<div style="text-align:center;color:#8b95a5;font-size:12px;padding:10px">Cargando historial…</div>';
+  const rows=await cargarHistorialUsuario();
+  if(!rows.length){ box.innerHTML='<div style="text-align:center;color:#8b95a5;font-size:12px;padding:12px">Sin operaciones en los últimos 7 días.</div>'; return; }
+  const filas=rows.map(function(r){
+    const esRetiro=String(r.tipo||"").toUpperCase()==="RETIRO";
+    const rech=["RECHAZADA","CANCELADA","ERROR","ERROR_OPERATIVO"].includes(String(r.estado||"").toUpperCase());
+    return '<div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;background:#12141b;border:1px solid #23262f;border-radius:12px;padding:10px 12px;margin-top:8px">'
+      + '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">'+(esRetiro?"🏧":"💳")+'</span>'
+      +   '<div><div style="font-weight:800;font-size:14px;color:#e8edf4">'+(esRetiro?"Retiro":"Carga")+'</div>'
+      +   '<div style="font-size:11px;color:#8b95a5">'+esc(_fechaCorta(r.fecha))+'</div></div></div>'
+      + '<div style="text-align:right"><div style="font-weight:900;font-size:15px;color:#e9c25c">'+_money(Number(r.monto)||0)+'</div>'+_estadoBadge(r.estado)+'</div>'
+      + (rech && r.motivo ? '<div style="width:100%;font-size:11.5px;color:#fca5a5;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:6px 8px;margin-top:2px">🚫 '+esc(r.motivo)+'</div>' : '')
+      + '</div>';
+  }).join("");
+  box.innerHTML='<div style="font-size:12px;font-weight:800;color:#8b95a5;text-transform:uppercase;letter-spacing:.4px;margin:16px 2px 4px">Últimos 7 días</div>'+filas;
+}
+
 function renderEstado(){
   const s=$("screenEstado");
   if(!s)return;
@@ -1111,7 +1167,8 @@ function renderEstado(){
           <button class="action-btn secondary-btn" onclick="verEstado()">Actualizar</button>
         </div>
         <button class="link-btn" style="width:100%;margin-top:4px" onclick="limpiarPendienteManual()">Marcar como resuelta en este dispositivo</button>
-      </div>`;
+      </div>
+      <div id="histUsuario"></div>`;
     if(solicitudIdValido())consultarEstadoSolicitud(true);
     else setEstadoLive("Sin nº de solicitud para consultar");
     if(String(state.pendingTipo||"").toUpperCase()==="RETIRO") cargarProgresoRetiro().catch(()=>{});
@@ -1125,8 +1182,10 @@ function renderEstado(){
           <button class="action-btn" onclick="goCarga()">💳 Cargar</button>
           <button class="action-btn secondary-btn" onclick="goHome()">Inicio</button>
         </div>
-      </div>`;
+      </div>
+      <div id="histUsuario"></div>`;
   }
+  pintarHistorialUsuario();
 }
 
 function limpiarPendienteAprobado(obs){
@@ -1660,7 +1719,7 @@ async function enviarSolicitudCarga(usuario,monto,titular){
   if(String(titular||"").trim().length<3)return toast("Indicá el titular que transfiere (mínimo 3 letras).");
   limpiarSolicitudAnteriorAntesDeNueva();
   const bp=billeteraPayloadPlano();
-  const payload={usuario,monto:Number(monto),titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,tipo:"CARGA",...bp};
+  const payload={usuario,monto:Number(monto),titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,navegador:_infoNavegador(),tipo:"CARGA",...bp};
   const destino=bp.billetera_nombre?`${bp.billetera_nombre}${bp.billetera_alias?" · "+bp.billetera_alias:""}`:null;
   let res=await rpc("landing_portal_v16_crear_solicitud",{p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"CARGA",p_monto:Number(monto),p_titular:titular,p_destino:destino,p_mensaje:"Solicitud de CARGA: $"+monto+" · Titular: "+titular,p_metadata:payload});
   // Rechazo por validación de vínculo → NO usar fallback (sería un bypass). Mandamos a soporte.
@@ -1718,7 +1777,7 @@ async function enviarSolicitudRetiro(){
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
   limpiarSolicitudAnteriorAntesDeNueva();
   const msg="Solicitud de RETIRO: $"+monto+" · Destino: "+destino+" · Titular: "+titular;
-  const payload={usuario,monto,destino,titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,tipo:"RETIRO"};
+  const payload={usuario,monto,destino,titular,telefono:state.telefono||"",pc_codigo:state.pcCodigo,public_code:state.publicCode,host:location.host,navegador:_infoNavegador(),tipo:"RETIRO"};
   let res=await rpc("landing_portal_v16_crear_solicitud",{
     p_public_code:state.publicCode,p_usuario:usuario,p_tipo:"RETIRO",
     p_monto:monto,p_titular:titular,p_destino:destino,p_mensaje:msg,p_metadata:payload
