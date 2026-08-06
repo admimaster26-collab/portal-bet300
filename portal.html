@@ -1120,8 +1120,12 @@ async function cargarHistorialUsuario(){
   return res.data;
 }
 function _fechaCorta(iso){
-  try{ const d=new Date(iso); if(isNaN(d.getTime())) return ""; return d.toLocaleString("es-AR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}); }
-  catch(_e){ return ""; }
+  // 24 h y con año corto: "06/08 09:01" — exacto y sin el "a. m." con espacios de es-AR.
+  try{
+    const d=new Date(iso); if(isNaN(d.getTime())) return "";
+    const p=n=>String(n).padStart(2,"0");
+    return p(d.getDate())+"/"+p(d.getMonth()+1)+" "+p(d.getHours())+":"+p(d.getMinutes());
+  }catch(_e){ return ""; }
 }
 function _estadoBadge(e){
   const u=String(e||"").toUpperCase();
@@ -1130,8 +1134,18 @@ function _estadoBadge(e){
   const col=ok?"#22c55e":rech?"#ef4444":"#f5c518", txt=ok?"Confirmada":rech?"Rechazada":"En revisión";
   return '<span style="font-size:11px;font-weight:800;color:'+col+'">'+txt+'</span>';
 }
+// El contenedor se re-crea solo: las tarjetas de estado final (aprobada/rechazada) sobrescriben
+// el innerHTML de #screenEstado y se llevaban puesto el historial.
+function _histBox(){
+  let box=$("histUsuario");
+  if(!box){
+    const s=$("screenEstado"); if(!s) return null;
+    box=document.createElement("div"); box.id="histUsuario"; s.appendChild(box);
+  }
+  return box;
+}
 async function pintarHistorialUsuario(){
-  const box=$("histUsuario"); if(!box) return;
+  const box=_histBox(); if(!box) return;
   box.innerHTML='<div style="text-align:center;color:#8b95a5;font-size:12px;padding:10px">Cargando historial…</div>';
   const rows=await cargarHistorialUsuario();
   if(!rows.length){ box.innerHTML='<div style="text-align:center;color:#8b95a5;font-size:12px;padding:12px">Sin operaciones en los últimos 7 días.</div>'; return; }
@@ -1213,6 +1227,7 @@ function limpiarPendienteAprobado(obs){
       <div class="estado-actions"><button class="action-btn" onclick="goHome()">Volver al inicio</button><button class="action-btn secondary-btn" onclick="goChat()">Chat</button></div>
     </div>`;
   haptic([30,40,30]);
+  try{ pintarHistorialUsuario(); }catch(_e){}   // la operación recién confirmada ya figura en el historial
   renderHome();
   if($("widget")?.classList.contains("open"))showScreen("estado");
   const notifTitulo=esRetiro?"BET300 · ¡Retiro procesado!":"BET300 · ¡Carga acreditada!";
@@ -1265,6 +1280,7 @@ async function consultarEstadoSolicitud(mostrarMensaje=true){
         ${obs?`<div class="estado-tx">${escMsg(obs)}</div>`:`<div class="estado-tx">Escribinos por el chat y un operador te ayuda.</div>`}
         <div class="estado-actions"><button class="action-btn" onclick="goChat()">💬 Consultar</button><button class="action-btn secondary-btn" onclick="goCarga()">Nueva carga</button></div>
       </div>`;
+    try{ pintarHistorialUsuario(); }catch(_e){}   // el rechazo (con su motivo) ya figura en el historial
     renderHome();
     if($("widget")?.classList.contains("open"))showScreen("estado");
     return estado;
@@ -1325,7 +1341,7 @@ async function cargarProgresoRetiro(){
 }
 async function verEstado(){
   if($("screenEstado").classList.contains("hidden"))goEstado();
-  else await consultarEstadoSolicitud(true);
+  else { await consultarEstadoSolicitud(true); try{ pintarHistorialUsuario(); }catch(_e){} }
 }
 
 // ── Validación usuario (agentes, en background) ────────────────────────────
