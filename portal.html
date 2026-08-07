@@ -1232,7 +1232,9 @@ function limpiarPendienteAprobado(obs){
   if($("widget")?.classList.contains("open"))showScreen("estado");
   const notifTitulo=esRetiro?"BET300 · ¡Retiro procesado!":"BET300 · ¡Carga acreditada!";
   const notifCuerpo=obs||(esRetiro?"Tu retiro fue transferido. Revisá tu cuenta.":"¡Tus fichas ya están disponibles! Revisá tu cuenta.");
-  notificarLocal(notifTitulo,notifCuerpo,"/","bet300-acreditada");
+  // El tag del retiro es el MISMO que usa el push del panel ("bet300-retiro"): así el SO colapsa
+  // las dos en una sola notificación en vez de mostrar "Retiro procesado" + "Pago de tu retiro".
+  notificarLocal(notifTitulo,notifCuerpo,"/",esRetiro?"bet300-retiro":"bet300-acreditada");
 }
 function esConfirmacionDemasiadoTemprana(){
   const started=Number(state.solicitudStartedAt||localStorage.getItem("bet300_solicitud_started_at")||0);
