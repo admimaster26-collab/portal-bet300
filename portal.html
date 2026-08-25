@@ -1398,6 +1398,53 @@ async function initRoute(){
   console.log("[BET300 V18] canal",state.pcCodigo,"ruta",state.publicCode);
 }
 
+// ── Enlace de acceso (?t=) ─────────────────────────────────────────────────
+// El operador verifica a la persona en el CRM y recién ahí le manda por WhatsApp un enlace
+// que la deja adentro YA VALIDADA y en la pantalla que corresponde (cargar o retirar), sin
+// pedirle usuario ni teléfono. No se reparten sueltos: cada uno vale para un solo uso y vence.
+//
+// Si vuelven a tocar el mismo enlace más tarde (pasa: la gente reabre el mensaje de WhatsApp)
+// el canje falla con YA_USADO, pero la sesión quedó guardada en el teléfono → entran igual y
+// NO les mostramos ningún error. El aviso sale solo si además no tienen sesión.
+async function canjearEnlaceAcceso(){
+  const t=(new URLSearchParams(location.search).get("t")||"").trim();
+  if(!t) return null;
+
+  // Sacamos el token de la barra de direcciones antes de usarlo: así no queda en el historial
+  // del navegador ni viaja si comparten la pantalla o reenvían el link ya abierto.
+  try{
+    const u=new URL(location.href); u.searchParams.delete("t");
+    history.replaceState(null,"",u.pathname+(u.search||"")+(u.hash||""));
+  }catch(_e){}
+
+  let d=null;
+  try{ const r=await rpc("landing_acceso_link_usar",{p_token:t}); d=normalize(r.data)||r.data||null; }catch(_e){}
+
+  if(!d||!d.ok){
+    if(state.usuario) return null;              // ya estaba adentro: el enlace sobraba
+    const motivo=String((d&&d.motivo)||"");
+    toast(motivo==="VENCIDO"||motivo==="YA_USADO"
+      ? "Este enlace ya se usó o venció. Pedile uno nuevo al operador."
+      : "No pudimos validar el enlace. Escribinos por chat y te ayudamos.");
+    return null;
+  }
+
+  state.usuario=String(d.usuario||"");
+  state.telefono=String(d.telefono||"");
+  state.pcCodigo=d.pc_codigo||state.pcCodigo;
+  if(d.public_code){ state.publicCode=d.public_code; try{localStorage.setItem("bet300_public_code",d.public_code);}catch(_e){} }
+  state.nivelAcceso="OK"; state.motivoSoporte="";
+  try{
+    localStorage.setItem("bet300_usuario",state.usuario);
+    localStorage.setItem("bet300_telefono",state.telefono);
+    localStorage.setItem("bet300_nivel_acceso","OK");
+    localStorage.removeItem("bet300_motivo_soporte");
+  }catch(_e){}
+  setTimeout(()=>subscribePush(),1500);
+  setTimeout(()=>marcarAppInstalada(),1700);
+  return { destino:String(d.destino||"").toUpperCase() };
+}
+
 // Promo de bienvenida: solo se muestra si la agente la tiene activada (landing_rutas_publicas.promo_activa).
 async function cargarPromoActiva(){
   state.promoActiva=false;
@@ -2092,11 +2139,19 @@ window.addEventListener("load",async()=>{
   try{ const _af=$("appFrame"); if(_af && (!_af.getAttribute("src") || _af.getAttribute("src")==="about:blank")) _af.src=PLATFORM_URL; }catch(_e){}
   restoreLauncherMini();
   await initRoute();
+  // Va DESPUÉS de initRoute: el enlace sabe de qué agente es el usuario, y esa oficina manda
+  // sobre la que se dedujo por host/ruta (puede abrirlo desde cualquier lado, incluso sin ?r=).
+  const acceso = await canjearEnlaceAcceso();
   await cargarPromoActiva();
   setTimeout(marcarAppInstalada, 2500);
   renderHome();
   showScreen("home");
   // mostrarLauncherSiHaceFalta(); // RETIRADO 2026-07-27: el launcher iPhone confundía a usuarios que veían el iframe bien
+  // Botón directo: el operador eligió si el enlace abre en Cargar o en Retirar. goCarga/goRetiro
+  // mantienen sus propios frenos (solicitud pendiente, límite diario de retiro), así que si no
+  // corresponde lo desvían solos y queda en Inicio.
+  if(acceso && acceso.destino==="CARGAR")  { try{ goCarga();  }catch(_e){} }
+  if(acceso && acceso.destino==="RETIRAR") { try{ goRetiro(); }catch(_e){} }
   if(tieneSolicitudPendiente()){
     startEstadoPoll();
     chequearPendienteViejo();
