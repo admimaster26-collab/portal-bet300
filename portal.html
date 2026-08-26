@@ -170,6 +170,20 @@ body.dock-collapsed #fullscreenBtn,body.dock-collapsed #floatBtn{opacity:0;point
 /* ── Formularios ────────────────────────────────────────────────────────── */
 .user-chip{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line-2);color:var(--gold-2);border-radius:10px;padding:8px 13px;font-size:13px;font-weight:800;margin-bottom:14px}
 .form-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+/* Aclaración bajo un campo que se presta a confusión. Chica y gris: guía sin gritar. */
+.campo-ayuda{font-size:11.5px;color:#8b8b97;margin:-6px 0 12px;padding-left:2px}
+/* El botón de enviar quedaba a 187px por debajo del pliegue: había que descubrir que se
+   scrollea. Pegado al fondo del área que scrollea (no a la ventana), así nunca tapa la barra
+   de abajo. El degradado deja ver que hay contenido pasando por detrás. */
+.acciones-fijas{position:sticky;bottom:-16px;display:flex;flex-direction:column;gap:9px;
+  padding:10px 0 16px;margin-top:4px;
+  background:linear-gradient(to bottom,transparent,var(--surface) 22%,var(--surface))}
+.acciones-fijas .action-btn{margin-top:0}
+/* "Necesito ayuda" era un botón del mismo peso que el de enviar y ocupaba 65px compitiendo
+   con la acción principal. Como enlace pesa 22px y se entiende igual. */
+.link-btn{background:none;border:0;color:var(--gold-2);font-size:13px;font-weight:800;
+  padding:4px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.link-btn:active{opacity:.6}
 label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:#a3a3b0;font-weight:800;margin-bottom:7px}
 input,textarea{width:100%;border:1px solid var(--line-2);background:#0c0c11;color:var(--text);border-radius:var(--r-sm);padding:14px;font-size:16px;margin-bottom:12px;transition:border-color .15s,box-shadow .15s}
 input::placeholder,textarea::placeholder{color:#56565f}
@@ -178,7 +192,12 @@ textarea{resize:vertical;min-height:76px}
 .muted-line{color:var(--muted);font-size:13px;padding:8px 0}
 .welcome-txt{font-size:13.5px;color:#c9c9d2;line-height:1.55}
 
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin:-2px 0 14px}
+/* Una sola fila que se desliza, en vez de dos que se apilan: ahorra ~44px y con eso el campo
+   del titular sube por encima del pliegue. Se corta el scrollbar porque en el teléfono estorba. */
+.chips{display:flex;flex-wrap:nowrap;gap:8px;margin:-2px 0 12px;overflow-x:auto;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chips .chip{flex:0 0 auto}
 .chip{border:1px solid var(--line-2);background:#101015;color:#e2e2ea;border-radius:10px;padding:10px 14px;font-size:13.5px;font-weight:800;cursor:pointer;transition:.14s}
 .chip:hover{border-color:var(--gold-deep);color:var(--gold-2)}.chip:active{transform:scale(.96)}
 .chip.on{background:rgba(233,194,92,.14);border-color:var(--gold);color:var(--gold-2)}
@@ -194,12 +213,24 @@ textarea{resize:vertical;min-height:76px}
 .transfer-title{font-weight:900;color:var(--gold-2);font-size:15.5px}
 .share-btn{border:1px solid rgba(233,194,92,.4);background:rgba(233,194,92,.1);color:var(--gold-2);border-radius:10px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;transition:.14s}
 .share-btn:hover{background:rgba(233,194,92,.18)}.share-btn:active{transform:scale(.95)}
-.transfer-field{background:#0c0c11;border-radius:12px;padding:12px;margin-bottom:9px;border:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.transfer-field{background:#0c0c11;border-radius:12px;padding:9px 11px;margin-bottom:7px;border:1px solid var(--line);display:flex;align-items:center;gap:10px}
 .transfer-field .tf-main{flex:1;min-width:0}
 .transfer-label{font-size:10px;color:#8b8b97;text-transform:uppercase;font-weight:800;letter-spacing:.5px;margin-bottom:4px}
 .transfer-value{font-size:15.5px;font-weight:800;color:#fff;word-break:break-all}
 .copy-btn{flex-shrink:0;border:1px solid var(--line-2);border-radius:10px;background:#20202a;color:#fff;padding:11px 13px;font-size:12.5px;font-weight:800;cursor:pointer;transition:.14s}
 .copy-btn:hover{background:#2a2a36}.copy-btn.done{background:var(--green);border-color:var(--green);color:#04210f}.copy-btn:active{transform:scale(.94)}
+/* El titular de NUESTRA cuenta: dato de referencia, no algo para copiar al formulario.
+   Antes era un campo igual a los demás y la gente lo confundía con el titular que se le pide. */
+/* Plegada: quedan el título y el botón para reabrirla. De 237px a ~70px, y el formulario
+   entero sube por encima del pliegue justo cuando la persona vuelve del banco a completarlo. */
+.transfer-card.plegada .transfer-field,
+.transfer-card.plegada .transfer-owner{display:none}
+.transfer-card.plegada .transfer-head{margin-bottom:0}
+.ver-datos{margin-top:9px;width:100%;background:none;border:1px dashed var(--line-2);color:#9a9aa6;
+  border-radius:10px;padding:8px;font-size:12.5px;font-weight:800;cursor:pointer}
+.ver-datos:active{opacity:.6}
+.transfer-owner{font-size:12px;color:#8b8b97;margin-top:2px;padding-left:2px;line-height:1.45}
+.transfer-owner b{color:#c9c9d4;font-weight:800}
 .transfer-hint{font-size:12.5px;color:#cdb878;line-height:1.5;margin-top:8px;display:flex;gap:7px}
 
 /* Skeleton */
@@ -1510,14 +1541,28 @@ function parseTransferCard(text){
   if(alias||cbu||cvu||cbucvu) return {nombre_visible:nombre,titular,alias,cbu:cbu||cbucvu,cvu,banco:banco||tipo};
   return null;
 }
+// Tarjeta de datos para transferir.
+//
+// Medido en un teléfono de 375x812: la pantalla de Cargar necesitaba 988px de alto sobre 682
+// visibles. El campo del titular y el botón de enviar quedaban DEBAJO del pliegue — la persona
+// entraba y no veía cómo terminar. Esta tarjeta sola ocupaba 340px, la mitad.
+//
+// Qué se sacó y por qué:
+//  · "Copiar todo" (51px): duplicaba lo que ya hacen los botones de cada campo.
+//  · El titular NUESTRO pasó de campo grande a línea al pie. Estaba a 60px del input que pide
+//    el titular DE ELLOS, y 58 personas en 14 días copiaron el nuestro. La cercanía inducía
+//    el error; ahora se lee como dato de la cuenta, no como algo para completar.
+//  · Alias y CBU quedan iguales: son lo único que la persona necesita copiar.
 function renderTransferCardHtml(d){
   d=d||{};
   const cbu=d.cbu||d.cvu||"";
-  const field=(lbl,val,copy)=> val ? ('<div class="transfer-field"><div class="tf-main"><div class="transfer-label">'+esc(lbl)+'</div><div class="transfer-value">'+esc(val)+'</div></div>'+(copy?('<button class="copy-btn" data-lbl="Copiar" onclick="copyText(\''+esc(val)+'\',this)">Copiar</button>'):'')+'</div>') : '';
-  const todo=[d.alias?('Alias: '+d.alias):'',cbu?('CBU/CVU: '+cbu):'',d.titular?('Titular: '+d.titular):'',d.banco?('Banco: '+d.banco):''].filter(Boolean).join(' · ');
-  return '<div class="transfer-card"><div class="transfer-head"><div class="transfer-title">📥 Datos para transferir</div></div>'
-    +field('Alias',d.alias,true)+field('CBU / CVU',cbu,true)+field('Titular',d.titular,false)+field('Banco',d.banco,false)
-    +'<div style="margin-top:8px"><button class="copy-btn" style="width:100%" onclick="copyText(\''+esc(todo)+'\',this)">⧉ Copiar todo</button></div></div>';
+  const field=(lbl,val)=> val ? ('<div class="transfer-field"><div class="tf-main"><div class="transfer-label">'+esc(lbl)+'</div><div class="transfer-value">'+esc(val)+'</div></div><button class="copy-btn" data-lbl="Copiar" onclick="copyText(\''+esc(val)+'\',this)">Copiar</button></div>') : '';
+  const pie=[d.titular?('a nombre de <b>'+esc(d.titular)+'</b>'):'', d.banco?esc(d.banco):'']
+              .filter(Boolean).join(' · ');
+  return '<div class="transfer-card"><div class="transfer-head"><div class="transfer-title">📥 Transferí a esta cuenta</div></div>'
+    + field('Alias',d.alias) + field('CBU / CVU',cbu)
+    + (pie?('<div class="transfer-owner">'+pie+'</div>'):'')
+    + '</div>';
 }
 // ── Producción: burbuja flotante de mensaje del operador ──
 function showOperatorBubble(texto, imgUrl){
@@ -1698,7 +1743,7 @@ function retiroCooldownRestanteMs(){const last=Number(localStorage.getItem(_reti
 function renderCarga(){
   const s=$("screenCarga");
   s.innerHTML=`<div class="screen-title">Cargar saldo</div>
-    <div class="screen-desc">Transferí a la cuenta de abajo y después confirmá el monto. Te acreditamos al verificarlo.</div>
+    <div class="screen-desc">Transferí y confirmá el monto. Te acreditamos al verificarlo.</div>
     <div class="user-chip">👤 ${esc(state.usuario)}</div>
     <div id="billeteraSlot">
       <div class="sk-card">
@@ -1712,10 +1757,12 @@ function renderCarga(){
       <label>Monto transferido (mínimo ${_money(MONTO_MIN_CARGA)})</label>
       <input id="cargaMonto" type="number" min="${MONTO_MIN_CARGA}" inputmode="numeric" placeholder="Ej: 5000" oninput="syncChips()">
       <div class="chips">${MONTOS_RAPIDOS.map(v=>`<button type="button" class="chip" data-v="${v}" onclick="setMonto(${v})">$${v.toLocaleString("es-AR")}</button>`).join("")}</div>
-      <label>Titular de la cuenta desde donde se envía el dinero</label>
-      <input id="cargaTitular" placeholder="Ej: Maria Lopez" autocomplete="name">
-      <button id="btnEnviarCarga" class="action-btn" onclick="enviarSolicitudCargaDirecta()">Ya transferí · Enviar solicitud</button>
-      <button class="action-btn secondary-btn" style="margin-top:9px" onclick="goChat()">Necesito ayuda</button>
+      <label>¿A nombre de quién está la cuenta que usaste para transferir?</label>
+      <input id="cargaTitular" placeholder="Tu nombre y apellido" autocomplete="name">
+      <div class="campo-ayuda">El tuyo, no el de la cuenta de arriba. <button class="link-btn" onclick="goChat()">Necesito ayuda</button></div>
+      <div class="acciones-fijas">
+        <button id="btnEnviarCarga" class="action-btn" onclick="enviarSolicitudCargaDirecta()">Ya transferí · Enviar solicitud</button>
+      </div>
     </div>`;
   cargarBilleteraEnSlot();
 }
@@ -1739,15 +1786,21 @@ async function cargarBilleteraEnSlot(){
   state.lastBilleteraSignature=sig;
   const alias=b?.alias||"",cbu=b?.cbu||b?.cvu||"",titular=b?.titular||"",tipo=inferirTipoBilletera(b);
   const canShare=!!navigator.share;
-  // Tarjeta compacta (Titular + Tipo en una línea, sin hint) para no provocar scroll en el monto/confirmación.
+  // Medido en 375x812: esta tarjeta ocupaba 340px de los 682 visibles y empujaba el campo del
+  // titular y el botón de enviar por debajo del pliegue. Dos cambios:
+  //  · "Copiar todo" se va cuando el teléfono NO tiene compartir nativo: duplicaba los botones
+  //    de cada campo. "Compartir" sí queda, porque hace algo distinto.
+  //  · El titular de NUESTRA cuenta baja de campo grande a línea al pie. Estaba a 60px del input
+  //    que pide el titular DE ELLOS y 58 personas en 14 días copiaron el nuestro.
+  const pie=[titular?`a nombre de <b>${esc(titular)}</b>`:"", tipo?esc(tipo):""].filter(Boolean).join(" · ");
   slot.innerHTML=`<div class="transfer-card">
     <div class="transfer-head">
       <div class="transfer-title">📥 Transferí a esta cuenta</div>
-      ${canShare?`<button class="share-btn" onclick="compartirBilletera()">↗ Compartir</button>`:`<button class="share-btn" onclick="copiarTodo(this)">⧉ Copiar todo</button>`}
+      ${canShare?`<button class="share-btn" onclick="compartirBilletera()">↗ Compartir</button>`:""}
     </div>
     ${alias?`<div class="transfer-field"><div class="tf-main"><div class="transfer-label">Alias</div><div class="transfer-value">${esc(alias)}</div></div><button class="copy-btn" data-lbl="Copiar" onclick="copyText('${esc(alias)}',this)">Copiar</button></div>`:""}
     ${cbu?`<div class="transfer-field"><div class="tf-main"><div class="transfer-label">CBU / CVU</div><div class="transfer-value">${esc(cbu)}</div></div><button class="copy-btn" data-lbl="Copiar" onclick="copyText('${esc(cbu)}',this)">Copiar</button></div>`:""}
-    ${titular?`<div class="transfer-field"><div class="tf-main"><div class="transfer-label">Titular${tipo?` · ${esc(tipo)}`:""}</div><div class="transfer-value">${esc(titular)}</div></div></div>`:""}
+    ${pie?`<div class="transfer-owner">${pie}</div>`:""}
   </div>`;
 }
 function _billeteraTexto(){
@@ -1773,7 +1826,32 @@ async function enviarSolicitudCargaDirecta(){
   await enviarSolicitudCarga(state.usuario,monto,titular);
 }
 
-async function copyText(t,btn){if(!t)return;try{await navigator.clipboard.writeText(t);}catch(e){}haptic(8);btn.classList.add("done");btn.textContent="✓ Copiado";setTimeout(()=>{btn.classList.remove("done");btn.textContent=btn.dataset.lbl||"Copiar";},1300);}
+async function copyText(t,btn){
+  if(!t)return;
+  try{await navigator.clipboard.writeText(t);}catch(e){}
+  haptic(8);
+  btn.classList.add("done"); btn.textContent="✓ Copiado";
+  setTimeout(()=>{btn.classList.remove("done");btn.textContent=btn.dataset.lbl||"Copiar";},1300);
+  // Una vez que copió, la persona se va al banco y vuelve a completar el formulario. Los datos
+  // ya no le hacen falta ocupando media pantalla: la tarjeta se pliega y el formulario sube.
+  // Queda un botón para volver a abrirla, porque a veces se pierde el dato en el camino.
+  try{
+    const card = btn.closest("#billeteraSlot .transfer-card");
+    if(card && !card.classList.contains("plegada")) plegarBilletera(card, true);
+  }catch(_e){}
+}
+function plegarBilletera(card, plegar){
+  if(!card) return;
+  card.classList.toggle("plegada", plegar);
+  let t = card.querySelector(".ver-datos");
+  if(!t){
+    t = document.createElement("button");
+    t.className = "ver-datos";
+    t.onclick = () => plegarBilletera(card, !card.classList.contains("plegada"));
+    card.appendChild(t);
+  }
+  t.textContent = plegar ? "Ver los datos otra vez" : "Ocultar datos";
+}
 
 function limpiarSolicitudAnteriorAntesDeNueva(){
   stopEstadoPoll();stopChatPoll();estadoFinalNotificado=false;
