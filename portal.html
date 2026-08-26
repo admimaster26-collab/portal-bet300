@@ -1460,6 +1460,18 @@ async function initRoute(){
     }
   }catch(_e){}
 
+  // Ya estamos en el dominio de la agencia y la ruta quedó guardada, así que el ?r= no aporta:
+  // el dominio solo alcanza para saber la oficina. Se limpia para que la barra de direcciones
+  // quede prolija — si no, un enlace que vino del genérico deja el ?r= colgado para siempre.
+  // Solo se toca si hay dominio propio: en el genérico el ?r= es lo único que dice la oficina.
+  try{
+    const propioOk = String(row && row.host || "").trim().toLowerCase() === location.hostname.toLowerCase();
+    if(propioOk && new URLSearchParams(location.search).has("r")){
+      const u=new URL(location.href); u.searchParams.delete("r");
+      history.replaceState(null,"",u.pathname+(u.search||"")+(u.hash||""));
+    }
+  }catch(_e){}
+
   console.log("[BET300 V18] canal",state.pcCodigo,"ruta",state.publicCode);
 }
 
