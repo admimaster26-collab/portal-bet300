@@ -1425,7 +1425,26 @@ async function initRoute(){
   if(!state.publicCode){ state.pcCodigo=null; console.warn("[BET300] sin ruta de agente"); return; }
   // 4) Resolver agente por public_code (DB-driven). Sin default P1 en producción.
   const r=await rpc("landing_resolver_ruta_publica",{p_public_code:state.publicCode});
-  if(!r.error){const row=normalize(r.data);state.pcCodigo=row?.pc_codigo||row?.pc||row?.codigo_pc||null;}
+  const row = r.error ? null : normalize(r.data);
+  if(row){ state.pcCodigo=row.pc_codigo||row.pc||row.codigo_pc||null; }
+
+  // Si llegaron por el dominio genérico pero la agencia tiene el suyo, nos mudamos ANTES de
+  // canjear el token. Motivo: la sesión se guarda por origen — quedaba en el dominio de Vercel
+  // y la persona aparecía deslogueada al entrar después por el dominio de su agencia. Además
+  // en WhatsApp un ".vercel.app" no se lee como algo de la marca.
+  // Va antes del canje a propósito: el token viaja intacto y se gasta en el dominio correcto.
+  try{
+    const propio = String(row && row.host || "").trim().toLowerCase();
+    if(propio && location.hostname.toLowerCase() !== propio){
+      const yaRebotamos = sessionStorage.getItem("bet300_redirigido") === "1";
+      if(!yaRebotamos){
+        sessionStorage.setItem("bet300_redirigido","1");   // sin esto, un dominio mal cargado haría un bucle
+        location.replace("https://" + propio + location.pathname + location.search + location.hash);
+        await new Promise(()=>{});                          // frenar el arranque mientras navega
+      }
+    }
+  }catch(_e){}
+
   console.log("[BET300 V18] canal",state.pcCodigo,"ruta",state.publicCode);
 }
 
