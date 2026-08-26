@@ -188,6 +188,11 @@ label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;
 input,textarea{width:100%;border:1px solid var(--line-2);background:#0c0c11;color:var(--text);border-radius:var(--r-sm);padding:14px;font-size:16px;margin-bottom:12px;transition:border-color .15s,box-shadow .15s}
 input::placeholder,textarea::placeholder{color:#56565f}
 input:focus,textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(233,194,92,.14)}
+/* Campo que falta completar. Antes solo salía un cartelito abajo que duraba 2,4 s: la persona
+   no sabía CUÁL faltaba. Ahora se marca el campo y se lo lleva a la vista.
+   La sacudida es corta y una sola vez — con "reducir movimiento" del sistema no corre (línea 43). */
+input.falta{border-color:#e5484d;box-shadow:0 0 0 3px rgba(229,72,77,.16);animation:sacudir .3s ease}
+@keyframes sacudir{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 textarea{resize:vertical;min-height:76px}
 .muted-line{color:var(--muted);font-size:13px;padding:8px 0}
 .welcome-txt{font-size:13.5px;color:#c9c9d2;line-height:1.55}
@@ -204,7 +209,15 @@ textarea{resize:vertical;min-height:76px}
 
 .action-btn{width:100%;border:1px solid var(--gold-deep);border-radius:var(--r-sm);padding:16px;font-weight:900;font-size:15.5px;cursor:pointer;margin-top:2px;
   background:var(--gold);color:#1a1500;transition:transform .14s,filter .14s,background .14s}
-.action-btn:hover{filter:brightness(1.05)}.action-btn:active{transform:scale(.985)}.action-btn:disabled{opacity:.55;cursor:default}
+.action-btn:hover{filter:brightness(1.05)}
+/* El hundido era de .985: en un celular no se percibe y la gente toca dos veces porque no sabe
+   si registró. .955 con una transición corta se siente sin verse aparatoso. */
+.action-btn{transition:transform .09s ease,filter .15s,opacity .15s}
+.action-btn:active{transform:scale(.955)}
+.action-btn:disabled{opacity:.55;cursor:default;transform:none}
+.chip{transition:transform .09s ease,background .14s,border-color .14s}
+.chip:active{transform:scale(.93)}
+.copy-btn:active{transform:scale(.9)}
 .secondary-btn{background:var(--surface);color:var(--text);border:1px solid var(--line-2)}.secondary-btn:hover{background:#20202a;filter:none}
 
 /* ── Transferencia ──────────────────────────────────────────────────────── */
@@ -1436,9 +1449,11 @@ async function initRoute(){
   try{
     const propio = String(row && row.host || "").trim().toLowerCase();
     if(propio && location.hostname.toLowerCase() !== propio){
-      const yaRebotamos = sessionStorage.getItem("bet300_redirigido") === "1";
-      if(!yaRebotamos){
-        sessionStorage.setItem("bet300_redirigido","1");   // sin esto, un dominio mal cargado haría un bucle
+      // La bandera guarda A QUÉ dominio ya intentamos ir, no un simple "sí". Con un "sí" pelado,
+      // quien abría un segundo enlace en la misma sesión del navegador ya no se mudaba y quedaba
+      // en el genérico. Así solo se frena el bucle real: intentar dos veces el MISMO destino.
+      if(sessionStorage.getItem("bet300_redirigido") !== propio){
+        sessionStorage.setItem("bet300_redirigido", propio);
         location.replace("https://" + propio + location.pathname + location.search + location.hash);
         await new Promise(()=>{});                          // frenar el arranque mientras navega
       }
@@ -1835,10 +1850,33 @@ async function compartirBilletera(){
   try{await navigator.share({title:"BET300 · Transferir",text:_billeteraTexto()});}catch(e){}
 }
 
+// Marca los campos vacíos, lleva el primero a la vista y lo enfoca.
+// Antes un formulario incompleto solo mostraba un cartel abajo que duraba 2,4 s: la persona
+// veía "completá los datos" sin saber CUÁL faltaba, y en Cargar el campo podía estar fuera
+// de pantalla. Devuelve true si falta algo.
+function marcarFaltantes(ids){
+  document.querySelectorAll("input.falta").forEach(e=>e.classList.remove("falta"));
+  const faltan = ids.filter(id => !(($(id)?.value)||"").trim());
+  if(!faltan.length) return false;
+  faltan.forEach(id=>{
+    const e=$(id); if(!e) return;
+    e.classList.add("falta");
+    // se limpia sola apenas empieza a escribir: la marca no debe quedar pegada
+    e.addEventListener("input", ()=>e.classList.remove("falta"), {once:true});
+  });
+  const primero=$(faltan[0]);
+  if(primero){
+    try{ primero.scrollIntoView({block:"center",behavior:"smooth"}); }catch(_e){}
+    try{ primero.focus({preventScroll:true}); }catch(_e){ try{primero.focus();}catch(_e2){} }
+  }
+  haptic(18);
+  return true;
+}
+
 async function enviarSolicitudCargaDirecta(){
   const monto=($("cargaMonto")?.value||"").trim();
   const titular=($("cargaTitular")?.value||"").trim();
-  if(!monto||!titular)return toast("Completá monto y titular");
+  if(marcarFaltantes(["cargaMonto","cargaTitular"])) return toast("Falta completar el campo marcado");
   if(Number(monto)<MONTO_MIN_CARGA)return toast("La carga mínima es "+_money(MONTO_MIN_CARGA)+".");
   const btn=$("btnEnviarCarga");
   if(btn){btn.disabled=true;btn.textContent="Enviando...";}
@@ -1933,7 +1971,7 @@ async function enviarSolicitudRetiro(){
   const restRet=retiroCooldownRestanteMs();
   if(restRet>0)return toast("Ya solicitaste un retiro hoy. Podés pedir otro en "+_fmtRestante(restRet)+".");
   const usuario=state.usuario,montoRaw=$("retiroMonto")?.value.trim(),destino=$("retiroDestino")?.value.trim(),titular=$("retiroTitular")?.value.trim();
-  if(!montoRaw||!destino||!titular)return toast("Completá todos los datos del retiro");
+  if(marcarFaltantes(["retiroMonto","retiroDestino","retiroTitular"])) return toast("Falta completar el campo marcado");
   const monto=Math.abs(Number(montoRaw));
   if(!monto||monto<=0)return toast("Ingresá un monto válido mayor a cero");
   if(monto<MONTO_MIN_RETIRO)return toast("El retiro mínimo es "+_money(MONTO_MIN_RETIRO)+".");
