@@ -2225,11 +2225,19 @@ window.addEventListener("load",async()=>{
   renderHome();
   showScreen("home");
   // mostrarLauncherSiHaceFalta(); // RETIRADO 2026-07-27: el launcher iPhone confundía a usuarios que veían el iframe bien
-  // Botón directo: el operador eligió si el enlace abre en Cargar o en Retirar. goCarga/goRetiro
-  // mantienen sus propios frenos (solicitud pendiente, límite diario de retiro), así que si no
-  // corresponde lo desvían solos y queda en Inicio.
-  if(acceso && acceso.destino==="CARGAR")  { try{ goCarga();  }catch(_e){} }
-  if(acceso && acceso.destino==="RETIRAR") { try{ goRetiro(); }catch(_e){} }
+  // Botón directo: el operador eligió si el enlace abre en Cargar o en Retirar.
+  //
+  // OJO con el orden: el panel arranca CERRADO (corrido 812px hacia abajo) y la plataforma ocupa
+  // toda la pantalla. Cambiar de pantalla adentro de un panel cerrado no se ve — la persona
+  // entraba por el enlace y veía el casino, teniendo que buscar el botón "Cajero". Primero se
+  // abre el panel, después se elige la pantalla; toggleWidget deja "home" si no se corrige.
+  //
+  // goCarga/goRetiro mantienen sus frenos (solicitud pendiente, límite diario de retiro): si no
+  // corresponde, desvían solos y el panel queda abierto en Inicio, que igual es lo que se busca.
+  if(acceso && (acceso.destino==="CARGAR" || acceso.destino==="RETIRAR")){
+    try{ toggleWidget(true); }catch(_e){}
+    try{ if(acceso.destino==="CARGAR") goCarga(); else goRetiro(); }catch(_e){}
+  }
   if(tieneSolicitudPendiente()){
     startEstadoPoll();
     chequearPendienteViejo();
