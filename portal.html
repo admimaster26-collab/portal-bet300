@@ -2246,7 +2246,23 @@ function marcarFaltantes(ids){
   return true;
 }
 
+// Un toque, un envío. El botón se apagaba recién DESPUÉS de preguntarle al servidor si el titular
+// estaba bloqueado. Con mala señal esa consulta tarda segundos: el botón seguía vivo, el jugador
+// veía que no pasaba nada y volvía a tocar, y cada toque mandaba otra solicitud igual. El freno de
+// "ya tenés una en revisión" no las paraba, porque todas preguntaban antes de que existiera la
+// primera (rodrigocuarteto, 7/10: 8 cargas de $3.000 en 700 ms; 122 casos desde el 3/10).
+// Ahora el botón se apaga en el mismo toque, antes de cualquier consulta, y mientras hay un envío
+// en curso los toques de más no hacen nada. Si el envío no sale, el botón vuelve.
+let _enviandoCarga=false;
 async function enviarSolicitudCargaDirecta(){
+  if(_enviandoCarga) return;
+  _enviandoCarga=true;
+  const btn=$("btnEnviarCarga");
+  if(btn){btn.disabled=true;btn.textContent="Enviando...";}
+  try{ await _enviarSolicitudCargaDirecta(); }
+  finally{ _enviandoCarga=false; _restaurarBoton("btnEnviarCarga","Ya transferí · Enviar solicitud"); }
+}
+async function _enviarSolicitudCargaDirecta(){
   _marcarToque();
   const monto=($("cargaMonto")?.value||"").trim();
   const titular=($("cargaTitular")?.value||"").trim();
@@ -2407,7 +2423,18 @@ async function _rellenarDatosRetiro(){
   }
 }
 
+// Igual que en la carga: acá la primera consulta al servidor (si ya hay una solicitud activa)
+// corría con el botón todavía vivo.
+let _enviandoRetiro=false;
 async function enviarSolicitudRetiro(){
+  if(_enviandoRetiro) return;
+  _enviandoRetiro=true;
+  const btn=$("btnEnviarRetiro");
+  if(btn){btn.disabled=true;btn.textContent="Enviando...";}
+  try{ await _enviarSolicitudRetiro(); }
+  finally{ _enviandoRetiro=false; _restaurarBoton("btnEnviarRetiro","Enviar retiro a revisión"); }
+}
+async function _enviarSolicitudRetiro(){
   _marcarToque();
   if(!await _puedeOperarConServidor())return;
   const restRet=retiroCooldownRestanteMs();
