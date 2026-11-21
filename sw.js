@@ -2,7 +2,7 @@
    BET300 · Service Worker — PWA + Web Push
    Versión: 1.3.2   (bumpear en cada deploy del portal → dispara el aviso "Actualizar")
    ============================================================ */
-const CACHE = 'bet300-pwa-v34';
+const CACHE = 'bet300-pwa-v35';
 const SHELL = ['/', '/portal.html', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 // ── Instalación: cachear shell ────────────────────────────────
